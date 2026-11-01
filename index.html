@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Plan électrique maison</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: tool shell — palette | drawing sheet | inspector. Header carries the green/yellow earth-conductor stripe. */
+:root{
+  --bg:#e6e9ea; --panel:#f5f6f6; --paper:#ffffff; --ink:#1b2125; --muted:#5b6870; --line:#d2d8db; --wall:#22282c;
+  --accent:#8c4a1b; --accent-soft:#f4e8de; --sel:#2b5e9e; --err:#b3261e; --warn:#8f5508; --ok:#2f7a39;
+  --grid:#f0f3f4; --grid2:#e2e7e9; --tg:#3c8d3a; --ty:#dcbc14;
+  --f-ui:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-head:'Barlow Semi Condensed','Barlow',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121619; --panel:#191e22; --paper:#0e1215; --ink:#e2e7ea; --muted:#97a3ab; --line:#2c343a; --wall:#d6dde1;
+    --accent:#d68d57; --accent-soft:#2d2219; --sel:#80a9df; --err:#f08a80; --warn:#e2a64c; --ok:#7cc785;
+    --grid:#13181b; --grid2:#1b2226; --tg:#4fa64c; --ty:#d9bb2a; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121619; --panel:#191e22; --paper:#0e1215; --ink:#e2e7ea; --muted:#97a3ab; --line:#2c343a; --wall:#d6dde1;
+  --accent:#d68d57; --accent-soft:#2d2219; --sel:#80a9df; --err:#f08a80; --warn:#e2a64c; --ok:#7cc785;
+  --grid:#13181b; --grid2:#1b2226; --tg:#4fa64c; --ty:#d9bb2a; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.4}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+.app{height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 12px}
+
+/* header */
+.top{display:flex;align-items:center;gap:14px 20px;flex-wrap:wrap;padding-block:10px 9px;position:relative}
+.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:2px;
+  background:repeating-linear-gradient(115deg,var(--tg) 0 12px,var(--ty) 12px 24px)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{width:30px;height:30px;flex:none;color:var(--accent)}
+.brand b{font-family:var(--f-head);font-size:19px;font-weight:700;letter-spacing:.01em;display:block;line-height:1.1}
+.brand small{display:block;font-size:12px;color:var(--muted)}
+.brand small[data-s="ok"]::before{content:"● ";color:var(--ok)}
+.brand small[data-s="busy"]::before{content:"● ";color:var(--warn)}
+.brand small[data-s="local"]::before{content:"● ";color:var(--muted)}
+.brand small[data-s="err"]::before{content:"● ";color:var(--err)}
+.tabs{display:flex;align-items:center;gap:2px;flex-wrap:wrap;flex:1;min-width:0}
+.tab{white-space:nowrap;border:0;background:none;padding:7px 11px;border-radius:5px;cursor:pointer;font-family:var(--f-head);font-weight:600;font-size:15px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+.tab:hover{background:var(--panel);color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);background:var(--panel);box-shadow:inset 0 -2px 0 var(--accent)}
+.tab .cnt{font-family:var(--f-mono);font-size:11px;background:var(--grid2);color:var(--muted);padding:0 5px;border-radius:8px}
+.tsep{width:1px;height:20px;background:var(--line);margin:0 6px}
+.actions{display:flex;gap:6px;align-items:center;position:relative}
+.btn{border:1px solid var(--line);background:var(--panel);padding:6px 11px;border-radius:5px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.sm{padding:3px 8px;font-size:13px}
+.btn.danger{color:var(--err)}
+.btn.danger.armed{background:var(--err);color:#fff;border-color:var(--err)}
+.btn:disabled{opacity:.45;cursor:default}
+.menu-list{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:var(--panel);border:1px solid var(--line);border-radius:7px;
+  box-shadow:0 10px 30px rgba(0,0,0,.18);padding:6px;width:min(320px,calc(100vw - 32px))}
+.menu-list button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:5px;cursor:pointer}
+.menu-list button:hover{background:var(--grid2)}
+.menu-list button small{display:block;color:var(--muted);font-size:12px}
+
+/* work area */
+.work{display:grid;grid-template-columns:196px minmax(0,1fr) 330px;gap:10px;min-height:0}
+.palette,.side{background:var(--panel);border:1px solid var(--line);border-radius:7px;overflow:auto;min-height:0}
+.palette{padding:8px 6px 12px}
+.pcat h4{margin:12px 8px 4px;font-family:var(--f-head);font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.pcat:first-child h4{margin-top:4px}
+.pitem{display:flex;align-items:center;gap:8px;width:100%;border:1px solid transparent;background:none;padding:3px 6px;border-radius:5px;cursor:pointer;text-align:left;font-size:13.5px}
+.pitem svg{width:30px;height:30px;flex:none;color:var(--ink)}
+.pitem:hover{background:var(--grid2)}
+.pitem[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.pitem[aria-pressed="true"] svg{color:var(--accent)}
+
+.stage{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:7px;overflow:hidden;min-height:0}
+#stage{width:100%;height:100%;display:block;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+#stage.placing{cursor:crosshair}
+#stage.panning{cursor:grabbing}
+#stage .it{cursor:move}
+#stage.uni .it{cursor:default}
+.selbox{stroke:var(--sel);stroke-width:1.6;stroke-dasharray:4 3;vector-effect:non-scaling-stroke}
+.it.linkfrom .selbox{stroke:var(--accent)}
+.hint{position:absolute;left:12px;top:12px;max-width:min(380px,calc(100% - 70px));background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:10px 12px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.08);pointer-events:none}
+.hint b{font-family:var(--f-head);font-size:15px;display:block;margin-bottom:2px}
+.importcard{position:absolute;inset:0;display:grid;place-items:center;padding:16px;background:var(--paper);z-index:5}
+.importcard>div{max-width:420px;display:grid;gap:10px;justify-items:start}
+.importcard svg{width:44px;height:44px;color:var(--accent)}
+.importcard h2{margin:0;font-family:var(--f-head);font-size:24px;text-wrap:balance}
+.importcard p{margin:0;color:var(--muted)}
+.importcard small{color:var(--muted);font-size:12.5px}
+.importcard code{font-family:var(--f-mono);font-size:12.5px}
+.stage.drop{outline:2px dashed var(--accent);outline-offset:-6px}
+.status{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;gap:10px;padding:5px 10px;font-family:var(--f-mono);font-size:11.5px;color:var(--muted);background:linear-gradient(transparent,var(--paper) 40%);pointer-events:none}
+.status .mode{color:var(--accent);font-weight:600}
+.zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px}
+.zoom button{width:34px;height:34px;border:1px solid var(--line);background:var(--panel);border-radius:6px;cursor:pointer;font-size:17px;line-height:1;display:grid;place-items:center}
+.zoom button:hover{border-color:var(--muted)}
+.zoom svg{width:16px;height:16px}
+
+/* side panel */
+.stabs{display:flex;gap:2px;padding:6px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+.stabs button{flex:1;border:0;background:none;padding:7px 4px;border-radius:5px;cursor:pointer;font-family:var(--f-head);font-weight:600;font-size:14.5px;color:var(--muted)}
+.stabs button[aria-selected="true"]{background:var(--paper);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.pbody{padding:12px 14px 18px}
+.ph{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.ph-sym{width:52px;height:52px;flex:none;border:1px solid var(--line);border-radius:7px;background:var(--paper);display:grid;place-items:center}
+.ph-sym svg{width:40px;height:40px}
+.ph h2{margin:0;font-family:var(--f-head);font-size:18px;line-height:1.15;text-wrap:balance}
+.meta{margin:3px 0 0;color:var(--muted);font-size:13px}
+.ref-pill{font-family:var(--f-mono);font-weight:600;font-size:12px;padding:1px 7px;border-radius:9px;color:#fff;background:var(--c,var(--muted))}
+.ref-pill.none{background:var(--grid2);color:var(--muted)}
+.fields{display:grid;gap:10px}
+.fld{display:grid;gap:3px}
+.fld>span{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.fld small{color:var(--muted);font-size:12px}
+input[type=text],input[type=number],input[type=date],input:not([type]),select{width:100%;min-width:0;border:1px solid var(--line);background:var(--paper);border-radius:5px;padding:6px 8px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.chk{display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer}
+.chk input{accent-color:var(--accent);width:16px;height:16px}
+.seg{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.seg button{border:1px solid var(--line);background:var(--paper);border-radius:5px;padding:5px 9px;cursor:pointer;font-size:13px;min-width:34px}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.seg .mono{font-family:var(--f-mono);font-size:12px;color:var(--muted);padding:0 4px;min-width:38px;text-align:center}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.block{margin-bottom:18px}
+.bh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.block h3{margin:0 0 8px;font-family:var(--f-head);font-size:16px;font-weight:700}
+.bh h3{margin:0}
+.fine{color:var(--muted);font-size:12px;margin:6px 0 0}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.checks li{font-size:13px;padding:6px 8px 6px 10px;border-radius:5px;background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--muted)}
+.checks li.err{border-left-color:var(--err)}
+.checks li.warn{border-left-color:var(--warn)}
+.checks li.ok{border-left-color:var(--ok)}
+.card{border:1px solid var(--line);background:var(--paper);border-radius:7px;padding:9px 10px;display:grid;gap:7px;margin-bottom:8px}
+.card .top1{display:grid;grid-template-columns:auto 58px minmax(0,1fr);gap:6px;align-items:center}
+.swatch{width:22px;height:22px;border-radius:50%;border:2px solid var(--paper);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
+.card input.ref{font-family:var(--f-mono);font-weight:600;text-align:center}
+.card details summary{cursor:pointer;font-size:13px;color:var(--muted)}
+.plist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:3px}
+.plist li{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:6px;align-items:center;font-size:12.5px}
+.plist .r{font-family:var(--f-mono);font-weight:600}
+.plist .d{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plist .b{display:flex;gap:2px}
+.plist .b button{border:1px solid var(--line);background:var(--panel);border-radius:4px;cursor:pointer;font-size:11px;padding:1px 5px}
+.cfoot{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.help p{margin:0 0 10px;color:var(--muted)}
+.help h3{font-family:var(--f-head);font-size:16px;margin:0 0 6px}
+.keys{justify-items:start;display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:13px;margin:0 0 14px}
+kbd{font-family:var(--f-mono);font-size:11.5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--paper);white-space:nowrap}
+.linklist{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.linklist li{display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:13px}
+.expl{display:grid;gap:6px}
+.expl button{text-align:left}
+.expl small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--paper);padding:9px 14px;border-radius:7px;font-size:13.5px;z-index:50;max-width:calc(100vw - 32px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:grid;place-items:center;z-index:60;padding:16px}
+.modal>div{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:16px;width:min(640px,100%);display:grid;gap:10px}
+.modal textarea{width:100%;height:240px;font-family:var(--f-mono);font-size:11px;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:8px}
+.modal h3{margin:0;font-family:var(--f-head)}
+
+@media (max-width: 1100px){ .work{grid-template-columns:168px minmax(0,1fr) 300px} }
+@media (max-width: 900px){
+  html,body{height:auto}
+  .app{height:auto}
+  .tabs{order:3;flex:1 1 100%;flex-wrap:nowrap;overflow-x:auto}
+  .actions{margin-left:auto}
+  .work{grid-template-columns:minmax(0,1fr)}
+  .stage{height:64vh;order:1}
+  .palette{order:2;max-height:260px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));align-content:start}
+  .pcat{display:contents}
+  .pcat h4{grid-column:1/-1}
+  .side{order:3}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="-22 -22 44 44" aria-hidden="true"><circle cx="0" cy="0" r="12" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M-8.5 -8.5 L8.5 8.5 M8.5 -8.5 L-8.5 8.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+      <div><b>Plan électrique</b><small id="saveState" data-s="local">Chargement…</small></div>
+    </div>
+    <nav class="tabs" id="floorTabs" aria-label="Étages"></nav>
+    <div class="actions">
+      <button class="btn" id="undoBtn" type="button" title="Annuler (Ctrl+Z)">Annuler</button>
+      <button class="btn primary" id="exportBtn" type="button" aria-haspopup="true" aria-expanded="false">Exporter</button>
+      <div class="menu-list" id="exportMenu" hidden></div>
+    </div>
+  </header>
+  <main class="work">
+    <aside class="palette" id="palette" aria-label="Symboles"></aside>
+    <section class="stage" id="stageWrap">
+      <svg id="stage" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet">
+        <defs>
+          <pattern id="g10" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0 L0 0 0 50" style="fill:none;stroke:var(--grid);stroke-width:1"/></pattern>
+          <pattern id="g100" width="100" height="100" patternUnits="userSpaceOnUse"><rect width="100" height="100" fill="url(#g10)"/><path d="M100 0 L0 0 0 100" style="fill:none;stroke:var(--grid2);stroke-width:1.2"/></pattern>
+        </defs>
+        <rect id="gridR" x="-20000" y="-20000" width="40000" height="40000" fill="url(#g100)"/>
+        <g id="planL"></g><g id="linkL"></g><g id="itemL"></g><g id="ghostL" opacity=".55"></g>
+      </svg>
+      <div class="hint" id="hint" hidden></div>
+      <div class="importcard" id="importCard" hidden><div>
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 10h36v28H6z M6 22h14 M20 10v12 M30 22v16 M30 30h12" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
+        <h2>Importe ton plan de maison</h2>
+        <p>Un fichier draw.io (<code>.drawio</code> ou <code>.drawio.svg</code>) avec une page par étage. Murs, fenêtres, portes et escaliers sont repris à l'échelle 1 unité = 1 cm.</p>
+        <button type="button" class="btn primary" data-act="imp-card">Choisir un fichier draw.io</button>
+        <small>ou glisse le fichier ici · il reste dans ton navigateur, rien n'est envoyé</small>
+      </div></div>
+      <div class="zoom">
+        <button type="button" id="zIn" title="Zoom avant">+</button>
+        <button type="button" id="zOut" title="Zoom arrière">−</button>
+        <button type="button" id="zFit" title="Ajuster à la fenêtre"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+      </div>
+      <div class="status"><span id="stMode"></span><span id="stPos"></span></div>
+    </section>
+    <aside class="side" aria-label="Propriétés">
+      <div class="stabs" role="tablist">
+        <button type="button" data-ptab="item" role="tab">Élément</button>
+        <button type="button" data-ptab="circ" role="tab">Circuits</button>
+        <button type="button" data-ptab="proj" role="tab">Projet</button>
+      </div>
+      <div class="pbody" id="panel-item"></div>
+      <div class="pbody" id="panel-circ" hidden></div>
+      <div class="pbody" id="panel-proj" hidden></div>
+    </aside>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+<input type="file" id="fileDrawio" accept=".drawio,.xml,.svg" hidden>
+<input type="file" id="fileJson" accept=".json,application/json" hidden>
+
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>'i'+Math.random().toString(36).slice(2,10);
+const fmt=n=>String(n).replace('.',',');
+const trunc=(s,n)=>(s=String(s||''),s.length>n?s.slice(0,n-1)+'…':s);
+function wrap(s,n){const w=String(s||'').split(/\s+/);const out=[];let cur='';for(const x of w){if(cur&&(cur+' '+x).length>n){out.push(cur);cur=x}else cur=(cur?cur+' ':'')+x}if(cur)out.push(cur);return out}
+
+/* ---------- drawing primitives (local box -20..20, wall side = +y) ---------- */
+const P=(c,d,w=2,extra='')=>`<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
+const C=(c,cx,cy,r,fill='none',w=2,extra='')=>`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="${c}" stroke-width="${w}" ${extra}/>`;
+const R=(c,x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${c}" stroke-width="2"/>`;
+const T=(c,x,y,s,size=9,weight=700)=>`<text x="${x}" y="${y}" font-size="${size}" font-weight="${weight}" text-anchor="middle" dominant-baseline="central" fill="${c}" font-family="'IBM Plex Mono',ui-monospace,Menlo,monospace">${esc(s)}</text>`;
+const X=(c,cx,cy,r)=>P(c,`M${cx-r} ${cy-r} L${cx+r} ${cy+r} M${cx+r} ${cy-r} L${cx-r} ${cy+r}`);
+const sockBase=c=>P(c,'M-11 -4 L11 -4 M-11 -4 A11 11 0 0 0 11 -4 M0 7 L0 16');
+const sockEarth=c=>P(c,'M-6 12 L6 12');
+const sw=c=>C(c,0,10,3.5);
+const swLine=c=>P(c,'M2.5 7.5 L11 -3 l3.9 3.2');
+const flags=(c,it)=>((it&&it.n>1)?T(c,16,-13,String(it.n),11):'')+((it&&it.ip)?T(c,-15,-13,'IP',7):'');
+const APP=(code,name,short)=>({name,short:short||name,cat:'app',kind:'appareil',circuit:true,draw:c=>R(c,-15,-11,30,22)+T(c,0,0,code,code.length>2?7.5:10)});
+
+const TYPES={
+  prise:{name:'Prise de courant avec terre',short:'Prise',cat:'prises',kind:'prise',circuit:true,multi:true,ip:true,h:30,draw:(c,it)=>sockBase(c)+sockEarth(c)+flags(c,it)},
+  prise_cmd:{name:'Prise commandée',short:'Prise commandée',cat:'prises',kind:'prise',circuit:true,multi:true,ip:true,h:30,draw:(c,it)=>sockBase(c)+sockEarth(c)+C(c,-16,10,2.5)+P(c,'M-14.3 8.2 L-9 1')+flags(c,it)},
+  prise_cuisson:{name:'Prise cuisinière / force',short:'Prise cuisson',cat:'prises',kind:'appareil',circuit:true,ip:true,h:30,draw:(c,it)=>sockBase(c)+sockEarth(c)+T(c,0,-12,'3~',7)+flags(c,{ip:it&&it.ip})},
+  lum:{name:'Point lumineux (plafond)',short:'Point lumineux',cat:'lum',kind:'eclairage',circuit:true,ip:true,draw:(c,it)=>C(c,0,0,11)+X(c,0,0,7.8)+flags(c,{ip:it&&it.ip})},
+  applique:{name:'Applique murale',short:'Applique',cat:'lum',kind:'eclairage',circuit:true,ip:true,h:200,draw:(c,it)=>C(c,0,-2,10)+X(c,0,-2,7)+P(c,'M0 8 L0 16')+flags(c,{ip:it&&it.ip})},
+  spot:{name:'Spot encastré',short:'Spot',cat:'lum',kind:'eclairage',circuit:true,ip:true,draw:(c,it)=>C(c,0,0,7)+X(c,0,0,4.9)+C(c,0,0,11,'none',1.2,'stroke-dasharray="3 2.5"')+flags(c,{ip:it&&it.ip})},
+  reglette:{name:'Réglette / tube LED',short:'Réglette',cat:'lum',kind:'eclairage',circuit:true,ip:true,draw:(c,it)=>P(c,'M-18 0 L18 0',3.2)+P(c,'M-18 -6 L-18 6 M18 -6 L18 6')+flags(c,{ip:it&&it.ip})},
+  projecteur:{name:'Projecteur extérieur',short:'Projecteur',cat:'lum',kind:'eclairage',circuit:true,ip:true,draw:(c,it)=>C(c,0,3,8)+X(c,0,3,5.6)+P(c,'M0 -8 L0 -15 M-7 -5 L-12 -10 M7 -5 L12 -10')+flags(c,{ip:it&&it.ip})},
+  int_simple:{name:'Interrupteur unipolaire',short:'Interrupteur',cat:'cmd',kind:'commande',circuit:true,ip:true,h:110,draw:(c,it)=>sw(c)+swLine(c)+flags(c,{ip:it&&it.ip})},
+  int_bipolaire:{name:'Interrupteur bipolaire',short:'Inter. bipolaire',cat:'cmd',kind:'commande',circuit:true,ip:true,h:110,draw:(c,it)=>sw(c)+swLine(c)+P(c,'M7.6 1.2 l3.9 3.2')+flags(c,{ip:it&&it.ip})},
+  int_double:{name:'Interrupteur double (2 allumages)',short:'Inter. double',cat:'cmd',kind:'commande',circuit:true,ip:true,h:110,draw:(c,it)=>sw(c)+swLine(c)+P(c,'M-2.5 7.5 L-11 -3 l-3.9 3.2')+flags(c,{ip:it&&it.ip})},
+  vav:{name:'Interrupteur va-et-vient',short:'Va-et-vient',cat:'cmd',kind:'commande',circuit:true,ip:true,h:110,draw:(c,it)=>C(c,0,4,3.5)+P(c,'M2.5 1.5 L10 -7 l3.9 3.2 M-2.5 6.5 L-10 15 l-3.9 -3.2')+flags(c,{ip:it&&it.ip})},
+  poussoir:{name:'Bouton-poussoir',short:'Poussoir',cat:'cmd',kind:'commande',circuit:true,ip:true,h:110,draw:(c,it)=>C(c,0,8,6.5)+C(c,0,8,2.4,c,1)+flags(c,{ip:it&&it.ip})},
+  variateur:{name:'Variateur',short:'Variateur',cat:'cmd',kind:'commande',circuit:true,h:110,draw:c=>sw(c)+swLine(c)+P(c,'M-12 -7 L1 3 M1 3 l-4.6 -0.4 M1 3 l-1.4 -4.4',1.4)},
+  detecteur:{name:'Détecteur de mouvement',short:'Détecteur',cat:'cmd',kind:'commande',circuit:true,ip:true,h:220,draw:(c,it)=>P(c,'M-10 13 A10 10 0 0 1 10 13 Z')+P(c,'M-15 4 A16 16 0 0 1 15 4',1.4)+P(c,'M-19 -4 A21 21 0 0 1 19 -4',1.2,'stroke-dasharray="3 3"')+flags(c,{ip:it&&it.ip})},
+  thermostat:{name:'Thermostat',short:'Thermostat',cat:'cmd',kind:'commande',circuit:true,h:150,draw:c=>R(c,-10,-10,20,20)+T(c,0,0,'θ',12)},
+  telerupteur:{name:'Télérupteur / minuterie',short:'Télérupteur',cat:'cmd',kind:'commande',circuit:true,draw:c=>R(c,-14,-8,28,16)+T(c,0,0,'TL',9)},
+  taque:APP('TC','Taque de cuisson','Taque'),
+  four:APP('F','Four'),
+  hotte:APP('H','Hotte'),
+  lv:APP('LV','Lave-vaisselle'),
+  ll:APP('LL','Lave-linge'),
+  sl:APP('SL','Sèche-linge'),
+  ce:APP('CE','Chauffe-eau / boiler','Chauffe-eau'),
+  pac:APP('PAC','Pompe à chaleur'),
+  vmc:APP('VMC','Ventilation (VMC)','VMC'),
+  vr:APP('VR','Volet / store motorisé','Volet motorisé'),
+  ve:APP('VE','Borne de recharge VE','Borne VE'),
+  convecteur:{name:'Radiateur électrique',short:'Radiateur',cat:'app',kind:'appareil',circuit:true,draw:c=>R(c,-17,-8,34,16)+P(c,'M-13 0 L-9 -4.5 L-4.5 4.5 L0 -4.5 L4.5 4.5 L9 -4.5 L13 0',1.4)},
+  tableau:{name:'Tableau de distribution',short:'Tableau',cat:'div',kind:'tableau',circuit:false,draw:c=>R(c,-18,-10,36,20)+`<path d="M-18 10 L18 -10 L18 10 Z" fill="${c}" stroke="none"/>`},
+  compteur:{name:'Compteur',short:'Compteur',cat:'div',kind:'tableau',circuit:false,draw:c=>R(c,-15,-10,30,20)+T(c,0,0,'kWh',8)},
+  boite:{name:'Boîte de dérivation',short:'Boîte de dérivation',cat:'div',kind:'divers',circuit:false,draw:c=>C(c,0,0,6)+C(c,0,0,2,c,1)},
+  terre:{name:'Prise de terre',short:'Terre',cat:'div',kind:'divers',circuit:false,draw:c=>P(c,'M0 -14 L0 2 M-11 2 L11 2 M-7 7 L7 7 M-3 12 L3 12')},
+  sonnette:{name:'Sonnette',short:'Sonnette',cat:'div',kind:'divers',circuit:true,draw:c=>P(c,'M-10 7 A10 10 0 0 1 10 7 Z M-13 11 L13 11')},
+  fumee:{name:'Détecteur de fumée',short:'Détecteur fumée',cat:'div',kind:'divers',circuit:false,draw:c=>C(c,0,0,11)+T(c,0,0,'DF',8)},
+  data:{name:'Prise réseau (RJ45)',short:'RJ45',cat:'faible',kind:'faible',circuit:false,h:30,draw:c=>sockBase(c)+T(c,0,-12,'TP',8)},
+  tv:{name:'Prise TV / coaxiale',short:'TV',cat:'faible',kind:'faible',circuit:false,h:30,draw:c=>sockBase(c)+T(c,0,-12,'TV',8)},
+  piece:{name:'Nom de pièce',short:'Nom de pièce',cat:'annot',kind:'piece',circuit:false,draw:c=>`<text x="0" y="1" font-size="15" font-style="italic" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="${c}" font-family="Barlow,system-ui,sans-serif">Aa</text>`},
+};
+const CATS=[['annot','Annotations'],['prises','Prises'],['lum','Éclairage'],['cmd','Commandes'],['app','Appareils fixes'],['div','Tableau & divers'],['faible','Courants faibles']];
+const CCOL=['#d1453b','#3a78c9','#33934a','#9554c0','#c4860f','#1a96a0','#cf3b7a','#71808c','#9a6a4f','#5664d1'];
+const NATURES=[['eclairage','Éclairage'],['prises','Prises'],['mixte','Mixte'],['dedie','Appareil dédié'],['reserve','Réserve']];
+const CDEF={eclairage:{name:'Éclairage',cal:16,sec:1.5},prises:{name:'Prises',cal:20,sec:2.5},mixte:{name:'Prises et éclairage',cal:16,sec:2.5},dedie:{name:'Appareil',cal:20,sec:2.5},reserve:{name:'Réserve',cal:16,sec:1.5}};
+const CALS=[6,10,16,20,25,32,40,50,63];
+const SECS=[1.5,2.5,4,6,10,16];
+const natureOfKind=k=>k==='prise'?'prises':(k==='eclairage'||k==='commande')?'eclairage':k==='appareil'?'dedie':'mixte';
+
+const PAL_APP={wall:'var(--wall)',paper:'var(--paper)',ink:'var(--ink)',muted:'var(--muted)',font:"Barlow,system-ui,sans-serif",mono:"'IBM Plex Mono',ui-monospace,monospace"};
+const PAL_EX={wall:'#1f2427',paper:'#ffffff',ink:'#16191b',muted:'#4f5a61',font:"Barlow,Arial,Helvetica,sans-serif",mono:"'IBM Plex Mono','Courier New',monospace"};
+
+/* ---------- state ---------- */
+function defaultState(){return{v:1,drawio:null,updatedAt:0,
+  settings:{size:36,refs:true,colors:true,snap:5,adresse:'',proprietaire:'',auteur:'',date:new Date().toISOString().slice(0,10),
+    alim:'Monophasé 230 V',branchement:40,gen:{sens:300,type:'A'},terre:''},
+  diffs:[{id:'d1',name:'DDR 30 mA n°1',sens:30,type:'A',calibre:40}],
+  circuits:[{id:'c1',ref:'A',name:'Éclairage',nature:'eclairage',diff:'d1',calibre:16,section:1.5,cable:'XVB',cond:3,color:0},
+            {id:'c2',ref:'B',name:'Prises',nature:'prises',diff:'d1',calibre:20,section:2.5,cable:'XVB',cond:3,color:1}],
+  items:[],links:[]}}
+let state=defaultState();
+let floors=[],floorsById={},planCache={};
+let curFloor=null,mode='plan',sel=null,placing=null,placeRot=0,linkFrom=null,panelTab='item',confirmKey=null;
+const views={};let view={x:0,y:0,k:1};let needFit=true;
+const lastCirc={};
+const openCards=new Set();
+
+function mergeState(s){const d=defaultState();const o={...d,...s};o.settings={...d.settings,...(s.settings||{})};o.settings.gen={...d.settings.gen,...((s.settings||{}).gen||{})};
+  o.diffs=Array.isArray(s.diffs)?s.diffs:d.diffs;o.circuits=Array.isArray(s.circuits)?s.circuits:d.circuits;o.items=Array.isArray(s.items)?s.items:[];o.links=Array.isArray(s.links)?s.links:[];return o}
+
+/* ---------- draw.io parsing ---------- */
+function parseStyle(s){const o={};(s||'').split(';').forEach(p=>{if(!p)return;const i=p.indexOf('=');if(i<0)o['_'+p]=true;else o[p.slice(0,i)]=p.slice(i+1)});return o}
+function parseDrawio(xml){
+  const doc=new DOMParser().parseFromString(xml,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length)throw new Error('Le fichier draw.io est illisible.');
+  return [...doc.getElementsByTagName('diagram')].filter(d=>!(d.getAttribute('id')||'').startsWith('elec')).map(d=>{
+    const cells=[...d.getElementsByTagName('mxCell')].map(el=>{
+      const host=el.getAttribute('id')?el:el.parentElement;
+      const g=el.getElementsByTagName('mxGeometry')[0];
+      const num=(a)=>+(g&&g.getAttribute(a)||0);
+      const pts={list:[]};
+      if(g)for(const p of g.getElementsByTagName('mxPoint')){const as=p.getAttribute('as');const pt={x:+(p.getAttribute('x')||0),y:+(p.getAttribute('y')||0)};
+        if(as==='sourcePoint')pts.source=pt;else if(as==='targetPoint')pts.target=pt;else if(p.parentElement&&p.parentElement.tagName==='Array')pts.list.push(pt)}
+      return{id:host.getAttribute('id'),vertex:el.getAttribute('vertex')==='1',edge:el.getAttribute('edge')==='1',st:parseStyle(el.getAttribute('style')),
+        value:el.getAttribute('value')||host.getAttribute('label')||'',source:el.getAttribute('source'),target:el.getAttribute('target'),
+        g:{x:num('x'),y:num('y'),w:num('width'),h:num('height')},pts};
+    }).filter(c=>(c.vertex||c.edge)&&!String(c.id||'').startsWith('elec'));
+    return{id:d.getAttribute('id'),name:d.getAttribute('name')||'Page',cells};
+  });
+}
+async function inflate(b64){
+  const bin=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+  const txt=await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  try{return decodeURIComponent(txt)}catch{return txt}
+}
+async function normalizeDrawio(text){
+  let xml=text.trim();
+  if(/^(<\?xml[^>]*>\s*)?(<!DOCTYPE[^>]*>\s*)?<svg/i.test(xml)){
+    const sd=new DOMParser().parseFromString(xml,'image/svg+xml');const c=sd.documentElement.getAttribute('content');
+    if(!c)throw new Error('Ce SVG ne contient pas de diagramme draw.io (exporte-le avec « Inclure une copie du diagramme »).');xml=c;
+  }
+  let doc=new DOMParser().parseFromString(xml,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length)throw new Error('Le fichier draw.io est illisible.');
+  if(doc.documentElement.tagName==='mxGraphModel'){
+    const wrapDoc=new DOMParser().parseFromString('<mxfile><diagram id="page1" name="Page 1"></diagram></mxfile>','application/xml');
+    wrapDoc.getElementsByTagName('diagram')[0].appendChild(wrapDoc.importNode(doc.documentElement,true));doc=wrapDoc;
+  }
+  for(const d of [...doc.getElementsByTagName('diagram')]){
+    if((d.getAttribute('id')||'').startsWith('elec')){d.remove();continue}
+    if(!d.getElementsByTagName('mxGraphModel').length){const t=d.textContent.trim();if(t){const inner=await inflate(t);
+      const m=new DOMParser().parseFromString(inner,'application/xml').documentElement;d.textContent='';d.appendChild(doc.importNode(m,true))}}
+    for(const c of [...d.getElementsByTagName('mxCell')]){if((c.getAttribute('id')||'').startsWith('elec'))c.remove()}
+  }
+  return new XMLSerializer().serializeToString(doc);
+}
+const drawioSrc=()=>state.drawio||'';
+function loadFloors(){
+  const src=drawioSrc();floors=[];if(src){try{floors=parseDrawio(src)}catch(e){toast(e.message);floors=[]}}
+  floorsById=Object.fromEntries(floors.map(f=>[f.id,f]));planCache={};
+  if(!floors.length){curFloor=null;planCache={};return}
+  if(!floorsById[curFloor]){let pref=null;try{pref=localStorage.getItem('pe-floor')}catch{}
+    curFloor=floorsById[pref]?pref:(floors.find(f=>/^rdc$|rez/i.test(f.name))||floors[0]).id}
+}
+
+/* ---------- plan rendering ---------- */
+function vbox(c){let{x,y,w,h}=c.g;let rot=+(c.st.rotation||0);const dir=c.st.direction;const cx=x+w/2,cy=y+h/2;
+  if(dir==='south'||dir==='north'){[w,h]=[h,w];x=cx-w/2;y=cy-h/2;rot+=dir==='south'?90:-90}else if(dir==='west')rot+=180;
+  return{x,y,w,h,rot,cx,cy}}
+function vertexMarkup(c,pal){
+  const b=vbox(c),s=c.st,sh=s.shape||'',{x,y,w,h}=b,W=pal.wall,Pp=pal.paper;let m='';
+  if(sh==='mxgraph.floorplan.wall'){const th=+(s.wallThickness||10);m=`<rect x="${x}" y="${y+h/2-th/2}" width="${w}" height="${th}" style="fill:${W};stroke:${W};stroke-width:.6"/>`}
+  else if(sh==='mxgraph.floorplan.window'){m=`<rect x="${x}" y="${y}" width="${w}" height="${h}" style="fill:${Pp};stroke:${W};stroke-width:1.2"/><line x1="${x}" y1="${y+h/2}" x2="${x+w}" y2="${y+h/2}" style="stroke:${W};stroke-width:1"/>`}
+  else if(sh==='mxgraph.floorplan.doorLeft'||sh==='mxgraph.floorplan.doorRight'){const left=sh.endsWith('Left');
+    const d=left?`M${w} 5 A${w} ${w} 0 0 1 0 ${5+w} L0 5`:`M0 5 A${w} ${w} 0 0 0 ${w} ${5+w} L${w} 5`;
+    m=`<g transform="translate(${x} ${y})"><rect x="0" y="0" width="${w}" height="5" style="fill:${Pp};stroke:${W};stroke-width:1"/><path d="${d}" style="fill:none;stroke:${W};stroke-width:1"/></g>`}
+  else if(sh==='mxgraph.floorplan.stairs'){let l='';for(let i=25;i<w;i+=25)l+=`M${x+i} ${y} L${x+i} ${y+h} `;
+    m=`<rect x="${x}" y="${y}" width="${w}" height="${h}" style="fill:${Pp};stroke:${W};stroke-width:1"/><path d="${l}" style="fill:none;stroke:${W};stroke-width:.8"/><path d="M${x+6} ${y+h/2} L${x+w-8} ${y+h/2} M${x+w-18} ${y+h/2-7} L${x+w-8} ${y+h/2} L${x+w-18} ${y+h/2+7}" style="fill:none;stroke:${W};stroke-width:1.3"/>`}
+  else if(c.value){const fs=+(s.fontSize||12);const t=c.value.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
+    if(t)m=`<text x="${b.cx}" y="${b.cy}" text-anchor="middle" dominant-baseline="central" style="fill:${pal.muted};font-size:${fs}px;font-family:${pal.font}">${esc(t)}</text>`}
+  else if(w&&h&&!s._text){m=`<rect x="${x}" y="${y}" width="${w}" height="${h}" style="fill:none;stroke:${W};stroke-width:1"/>`}
+  return b.rot?`<g transform="rotate(${b.rot} ${b.cx} ${b.cy})">${m}</g>`:m;
+}
+function edgeMarkup(c,byId,pal){
+  let a=c.pts.source,b=c.pts.target;
+  if(c.source&&byId[c.source]){const v=vbox(byId[c.source]);a={x:v.cx,y:v.cy}}
+  if(c.target&&byId[c.target]){const v=vbox(byId[c.target]);b={x:v.cx,y:v.cy}}
+  if(!a||!b)return'';const pts=[a,...c.pts.list,b];const swd=+(c.st.strokeWidth||1);
+  let dash='';if(c.st.dashed==='1'){dash=c.st.dashPattern?c.st.dashPattern.split(/\s+/).map(n=>+n*swd).join(' '):`${3*swd} ${3*swd}`}
+  return `<polyline points="${pts.map(p=>p.x+','+p.y).join(' ')}" style="fill:none;stroke:${pal.wall};stroke-width:${swd};${dash?'stroke-dasharray:'+dash:''}"/>`;
+}
+function planMarkup(f,pal){const byId=Object.fromEntries(f.cells.map(c=>[c.id,c]));return f.cells.map(c=>c.vertex?vertexMarkup(c,pal):edgeMarkup(c,byId,pal)).join('')}
+function boxAdd(b,x,y){if(!b)return{x0:x,y0:y,x1:x,y1:y};b.x0=Math.min(b.x0,x);b.y0=Math.min(b.y0,y);b.x1=Math.max(b.x1,x);b.y1=Math.max(b.y1,y);return b}
+function planBox(f,b=null){
+  for(const c of f.cells){
+    if(c.vertex){const v=vbox(c);const r=v.rot*Math.PI/180,co=Math.cos(r),si=Math.sin(r);
+      for(const[dx,dy]of[[-v.w/2,-v.h/2],[v.w/2,-v.h/2],[v.w/2,v.h/2],[-v.w/2,v.h/2]])b=boxAdd(b,v.cx+dx*co-dy*si,v.cy+dx*si+dy*co)}
+    else for(const p of[c.pts.source,c.pts.target,...c.pts.list])if(p)b=boxAdd(b,p.x,p.y)}
+  return b}
+function itemsBox(items,b=null){const s=state.settings.size;for(const i of items){b=boxAdd(b,i.x-s,i.y-s);b=boxAdd(b,i.x+s*1.6,i.y+s)}return b}
+const toRect=b=>b?{x:b.x0,y:b.y0,w:Math.max(1,b.x1-b.x0),h:Math.max(1,b.y1-b.y0)}:null;
+
+/* ---------- circuits helpers ---------- */
+const itemById=id=>state.items.find(i=>i.id===id);
+const circById=id=>state.circuits.find(c=>c.id===id);
+const circuitOf=it=>it&&it.circuit?circById(it.circuit):null;
+const diffOf=c=>state.diffs.find(d=>d.id===c.diff)||null;
+const colorOf=c=>CCOL[(c.color||0)%CCOL.length];
+function pointsOf(cid){return state.items.filter(i=>i.circuit===cid&&TYPES[i.type]).sort((a,b)=>(a.ord||0)-(b.ord||0))}
+function computeRefs(){const m={};for(const c of state.circuits)pointsOf(c.id).forEach((p,i)=>m[p.id]=c.ref+(i+1));return m}
+function refName(n){let s='';n++;while(n>0){const k=(n-1)%26;s=String.fromCharCode(65+k)+s;n=Math.floor((n-1)/26)}return s}
+function nextRef(){const used=new Set(state.circuits.map(c=>c.ref));for(let i=0;;i++){const r=refName(i);if(!used.has(r))return r}}
+const refSort=(a,b)=>a.ref.length-b.ref.length||a.ref.localeCompare(b.ref,'fr',{numeric:true});
+const cableStr=c=>`${c.cable||'XVB'} ${c.cond||3}G${fmt(c.section)}`;
+function nextOrd(cid){return Math.max(0,...state.items.filter(i=>i.circuit===cid).map(i=>i.ord||0))+1}
+function assign(it,cid){if(it.circuit===cid)return;it.circuit=cid||null;if(cid){it.ord=nextOrd(cid);const c=circById(cid);if(c)lastCirc[natureOfKind(TYPES[it.type].kind)]=cid}}
+function newCircuit(nature){const d=CDEF[nature]||CDEF.mixte;const used=new Set(state.circuits.map(c=>c.color));let color=0;while(used.has(color)&&color<CCOL.length)color++;
+  if(color>=CCOL.length)color=state.circuits.length%CCOL.length;
+  const c={id:uid(),ref:nextRef(),name:d.name,nature,diff:(state.diffs[0]||{}).id||'',calibre:d.cal,section:d.sec,cable:'XVB',cond:state.settings.alim.startsWith('Tri')&&nature==='dedie'?5:3,color};
+  state.circuits.push(c);return c}
+function defaultCircuitFor(type){const T=TYPES[type];if(!T.circuit)return null;const nat=natureOfKind(T.kind);
+  if(lastCirc[nat]&&circById(lastCirc[nat]))return lastCirc[nat];
+  if(T.kind==='appareil')return null;
+  const c=state.circuits.find(c=>c.nature===nat)||state.circuits.find(c=>c.nature==='mixte');return c?c.id:null}
+function autoRoom(it){let best=null,bd=Infinity;for(const p of state.items){if(p.type!=='piece'||p.floor!==it.floor)continue;const d=Math.hypot(p.x-it.x,p.y-it.y);if(d<bd){bd=d;best=p}}return best&&bd<900?(best.label||''):''}
+const roomOf=it=>it.room||autoRoom(it);
+const floorName=id=>(floorsById[id]||{}).name||'?';
+
+/* ---------- RGIE checks (indicative) ---------- */
+function checks(){
+  const out=[];const isWet=r=>/bain|douche|sdb|wc|buanderie/i.test(r||'');
+  for(const c of state.circuits.slice().sort(refSort)){
+    const pts=pointsOf(c.id);const nSock=pts.filter(p=>TYPES[p.type].kind==='prise').length;
+    if(nSock>8)out.push(['err',`Circuit ${c.ref} : ${nSock} prises. Le RGIE limite à 8 prises (simples ou multiples) par circuit.`]);
+    if(+c.section===1.5&&+c.calibre>16)out.push(['err',`Circuit ${c.ref} : 1,5 mm² protégé à ${c.calibre} A. Maximum 16 A pour cette section.`]);
+    if(+c.section===2.5&&+c.calibre>20)out.push(['err',`Circuit ${c.ref} : 2,5 mm² protégé à ${c.calibre} A. Maximum 20 A pour cette section.`]);
+    if(nSock&&+c.section<2.5)out.push(['warn',`Circuit ${c.ref} : prises en ${fmt(c.section)} mm². Vérifie la section (2,5 mm² courant pour les prises).`]);
+    const d=diffOf(c);const reasons=[];
+    if(pts.some(p=>['prise','eclairage'].includes(TYPES[p.type].kind)))reasons.push('prises/éclairage');
+    if(pts.some(p=>['lv','ll','sl'].includes(p.type)))reasons.push('appareil de lavage');
+    if(pts.some(p=>isWet(roomOf(p))))reasons.push('pièce humide');
+    if(reasons.length&&(!d||+d.sens>30))out.push(['warn',`Circuit ${c.ref} (${reasons.join(', ')}) n'est pas derrière un DDR 30 mA.`]);
+    if(!pts.length&&c.nature!=='reserve')out.push(['info',`Circuit ${c.ref} « ${c.name} » ne contient encore aucun point.`]);
+  }
+  for(const d of state.diffs){const n=state.circuits.filter(c=>c.diff===d.id).length;if(+d.sens<=30&&n>8)out.push(['warn',`${d.name} : ${n} circuits. Maximum 8 circuits par DDR 30 mA additionnel.`])}
+  const un=state.items.filter(i=>TYPES[i.type]&&TYPES[i.type].circuit&&!circById(i.circuit));
+  if(un.length)out.push(['info',`${un.length} point${un.length>1?'s':''} sans circuit (absent${un.length>1?'s':''} de l'unifilaire).`]);
+  if(!out.some(o=>o[0]==='err'||o[0]==='warn'))out.unshift(['ok','Aucun écart détecté sur les règles vérifiées.']);
+  return out;
+}
+
+/* ---------- item markup ---------- */
+function itemMarkup(it,refs,o){
+  const T=TYPES[it.type];if(!T)return'';const S=state.settings;const size=+S.size||30,k=size/40,hs=size/2;
+  const isSel=o.sel===it.id,lf=o.linkFrom===it.id;
+  if(it.type==='piece'){const fs=size*0.62;const label=it.label||'Pièce';const wE=Math.max(30,label.length*fs*0.56);
+    return `<g class="it piece${isSel?' sel':''}" data-id="${it.id}" transform="translate(${it.x} ${it.y})">${o.ex?'':`<rect x="${-wE/2-5}" y="${-fs*0.75}" width="${wE+10}" height="${fs*1.5}" fill="transparent"${isSel?' class="selbox"':''}/>`}<text text-anchor="middle" dominant-baseline="central" style="fill:${o.pal.muted};font-size:${fs}px;font-family:${o.pal.font};font-style:italic;font-weight:600">${esc(label)}</text></g>`}
+  const c=circuitOf(it);const col=(S.colors&&c)?colorOf(c):o.pal.ink;const ref=S.refs?refs[it.id]:null;const fs=size*0.42;
+  return `<g class="it${isSel?' sel':''}${lf?' linkfrom':''}" data-id="${it.id}" transform="translate(${it.x} ${it.y})" style="color:${col}">`+
+    ((isSel||lf)&&!o.ex?`<rect class="selbox" x="${-hs-4}" y="${-hs-4}" width="${size+8}" height="${size+8}" fill="none"/>`:'')+
+    `<g transform="rotate(${it.rot||0}) scale(${k})">${o.ex?'':'<rect x="-21" y="-21" width="42" height="42" fill="transparent"/>'}${T.draw('currentColor',it)}</g>`+
+    (ref?`<text x="${hs+1}" y="${-hs*0.72}" style="fill:${col};font-size:${fs}px;font-family:${o.pal.mono};font-weight:600;stroke:${o.pal.paper};stroke-width:${fs*0.28}px;paint-order:stroke">${esc(ref)}</text>`:'')+
+  `</g>`;
+}
+function linkMarkup(l,byId,fid,pal){const a=byId[l.a],b=byId[l.b];if(!a||!b||a.floor!==fid||b.floor!==fid)return'';
+  const mx=(a.x+b.x)/2,my=(a.y+b.y)/2,dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1,off=Math.min(60,L*.18);
+  return `<path d="M${a.x} ${a.y} Q${mx-dy/L*off} ${my+dx/L*off} ${b.x} ${b.y}" style="fill:none;stroke:${pal.muted};stroke-width:1.3;stroke-dasharray:7 5"/>`}
+
+/* ---------- unifilaire ---------- */
+function cartouche(pal,x,y,u,title,sub){
+  const S=state.settings,w=360*u,h=134*u,st=`stroke:${pal.ink};stroke-width:${1.2*u}`;
+  const t=(tx,ty,s,size,wt=500,col=pal.ink,fam=pal.font)=>`<text x="${tx}" y="${ty}" style="fill:${col};font-size:${size*u}px;font-family:${fam};font-weight:${wt}">${esc(s)}</text>`;
+  let o=`<rect x="${x}" y="${y}" width="${w}" height="${h}" style="fill:${pal.paper};${st}"/>`;
+  o+=`<line x1="${x}" y1="${y+36*u}" x2="${x+w}" y2="${y+36*u}" style="${st}"/>`;
+  o+=t(x+10*u,y+24*u,title,16,700)+(sub?`<text x="${x+w-10*u}" y="${y+24*u}" text-anchor="end" style="fill:${pal.muted};font-size:${12*u}px;font-family:${pal.font};font-weight:600">${esc(sub)}</text>`:'');
+  const rows=[['Adresse',S.adresse||'—'],['Propriétaire',S.proprietaire||'—'],['Dessiné par',(S.auteur||'—')+'   ·   '+(S.date||'')],['Réglementation','RGIE — Livre 1 (installations domestiques)']];
+  rows.forEach(([k,v],i)=>{const ry=y+(36+20+i*22)*u;o+=t(x+10*u,ry,k,10,600,pal.muted)+t(x+104*u,ry,trunc(v,44),11,500)});
+  return o;
+}
+function buildUni(pal){
+  const S=state.settings,COLW=134,X0=84,YB=268,SUBY=372,TOP=384,PT0=540,ROWH=60;const refs=computeRefs();
+  const circs=state.circuits.slice().sort(refSort);const dIds=new Set(state.diffs.map(d=>d.id));
+  const groups=[];const direct=circs.filter(c=>!dIds.has(c.diff));if(direct.length)groups.push({diff:null,circs:direct});
+  state.diffs.forEach(d=>groups.push({diff:d,circs:circs.filter(c=>c.diff===d.id)}));
+  let col=0;groups.forEach(g=>{g.col0=col;col+=Math.max(1,g.circs.length)});const ncol=Math.max(1,col);
+  const XC0=X0+150,lx=i=>XC0+i*COLW;
+  const PT={};circs.forEach(c=>PT[c.id]=pointsOf(c.id));
+  const maxN=Math.max(1,...circs.map(c=>PT[c.id].length));const yEnd=PT0+maxN*ROWH+20;
+  const used=[...new Set(circs.flatMap(c=>PT[c.id].map(p=>p.type)))];
+  const W=Math.max(1100,XC0+ncol*COLW+40);const perRow=Math.max(1,Math.floor((W-480)/232));const legRows=Math.ceil(used.length/perRow);
+  const H=yEnd+40+Math.max(40+legRows*40,160)+30;
+  const st=`stroke:${pal.ink};stroke-width:1.6;fill:none;stroke-linecap:round`;
+  const L=(x1,y1,x2,y2,extra='')=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="${st}${extra}"/>`;
+  const t=(x,y,s,size=12,o={})=>`<text x="${x}" y="${y}" text-anchor="${o.a||'start'}" style="fill:${o.color||pal.ink};font-size:${size}px;font-family:${o.mono?pal.mono:pal.font};font-weight:${o.w||500};${o.it?'font-style:italic;':''}">${esc(s)}</text>`;
+  const brk=(x,y)=>L(x,y,x,y+14)+L(x,y+40,x,y+50)+L(x,y+40,x+13,y+17)+`<path d="M${x-4} ${y+10} L${x+4} ${y+18} M${x+4} ${y+10} L${x-4} ${y+18}" style="${st}"/>`;
+  const ddr=(x,y)=>brk(x,y)+L(x,y+50,x,y+66)+`<ellipse cx="${x}" cy="${y+58}" rx="10" ry="4.5" style="${st}"/>`;
+  const sym=(ty,x,y,s,it)=>`<g transform="translate(${x} ${y}) scale(${s})" style="color:${pal.ink}">${TYPES[ty].draw('currentColor',it||{})}</g>`;
+  let o=`<rect x="0" y="0" width="${W}" height="${H}" style="fill:${pal.paper}"/><rect x="12" y="12" width="${W-24}" height="${H-24}" style="fill:none;stroke:${pal.ink};stroke-width:1.2"/>`;
+  o+=t(X0,40,'Réseau de distribution',12,{w:600,a:'middle'})+t(X0,56,S.alim,11,{a:'middle',color:pal.muted});
+  o+=L(X0,62,X0,74)+`<rect x="${X0-20}" y="74" width="40" height="28" style="${st}"/>`+t(X0,93,'kWh',11,{a:'middle',mono:1,w:600})+t(X0+30,93,'Compteur',11);
+  o+=L(X0,102,X0,112)+brk(X0,112)+t(X0+22,132,'Disjoncteur de branchement',11)+t(X0+22,147,`${S.branchement} A`,11,{mono:1,w:600});
+  o+=L(X0,162,X0,170)+ddr(X0,170)+t(X0+22,198,'DDR général (de tête)',11)+t(X0+22,213,`${S.gen.sens} mA · type ${S.gen.type}`,11,{mono:1,w:600});
+  o+=L(X0,236,X0,YB);
+  const ex=X0-48;o+=`<path d="M${X0} 250 L${ex} 250 L${ex} 296" style="${st};stroke-dasharray:5 4"/>`+sym('terre',ex,312,.9)+t(ex,346,'Terre',10,{a:'middle'})+(S.terre?t(ex,360,`R = ${S.terre} Ω`,10,{a:'middle',mono:1}):'');
+  const busEnd=Math.max(lx(ncol-1),X0+60);o+=L(X0,YB,busEnd,YB,';stroke-width:3');
+  groups.forEach(g=>{
+    const xs=[...Array(Math.max(1,g.circs.length))].map((_,j)=>lx(g.col0+j));
+    if(g.diff){const gx=xs[0];o+=`<circle cx="${gx}" cy="${YB}" r="3.5" style="fill:${pal.ink}"/>`+L(gx,YB,gx,282)+ddr(gx,282)+L(gx,348,gx,SUBY);
+      o+=t(gx+20,302,trunc(g.diff.name,22),11,{w:600})+t(gx+20,317,`${g.diff.sens} mA · type ${g.diff.type}`,10.5,{mono:1})+t(gx+20,331,`${g.diff.calibre} A`,10.5,{mono:1});
+      if(xs.length>1)o+=L(gx,SUBY,xs[xs.length-1],SUBY,';stroke-width:2.2');
+      if(g.circs.length)xs.forEach(x=>o+=L(x,SUBY,x,TOP));else o+=t(gx+10,SUBY+18,'aucun circuit',10,{it:1,color:pal.muted});}
+    else xs.forEach(x=>{o+=`<circle cx="${x}" cy="${YB}" r="3.5" style="fill:${pal.ink}"/>`+L(x,YB,x,TOP)});
+    g.circs.forEach((c,j)=>{const x=xs[j];const pts=PT[c.id];
+      o+=brk(x,TOP)+t(x+18,TOP+20,c.ref,17,{w:700,mono:1})+t(x+18,TOP+40,`${c.calibre} A`,11,{mono:1,w:600});
+      o+=L(x,TOP+50,x,pts.length?PT0:TOP+130);
+      wrap(c.name,17).slice(0,2).forEach((ln,i)=>o+=t(x+8,TOP+72+i*14,ln,11,{w:600}));
+      o+=t(x+8,TOP+106,c.nature==='reserve'&&!pts.length?'—':cableStr(c),10,{mono:1,color:pal.muted});
+      if(c.nature==='reserve'&&!pts.length)o+=t(x+8,TOP+124,'Réserve',11,{it:1,color:pal.muted});
+      if(pts.length)o+=L(x,PT0,x,PT0+(pts.length-1)*ROWH+ROWH/2);
+      pts.forEach((p,i)=>{const cy=PT0+i*ROWH+ROWH/2,Ty=TYPES[p.type];
+        o+=`<rect x="${x-15}" y="${cy-15}" width="30" height="30" style="fill:${pal.paper}"/>`+sym(p.type,x,cy,.68,p);
+        o+=t(x+20,cy-3,`${refs[p.id]} · ${trunc(Ty.short,13)}${p.n>1?' ×'+p.n:''}`,10.5,{w:600});
+        const r=roomOf(p);o+=t(x+20,cy+11,trunc([r,floorName(p.floor)].filter(Boolean).join(' · '),19),9.5,{color:pal.muted});});
+    });
+  });
+  const ly=yEnd+40;o+=t(40,ly,'Légende',13,{w:700});
+  used.forEach((ty,i)=>{const r=Math.floor(i/perRow),ci=i%perRow,x0=40+ci*232,y0=ly+14+r*40;o+=sym(ty,x0+16,y0+16,.62,{n:1})+t(x0+40,y0+20,TYPES[ty].name,11)});
+  if(!used.length)o+=t(40,ly+22,'Aucun point affecté à un circuit pour le moment.',11,{it:1,color:pal.muted});
+  o+=cartouche(pal,W-24-360,H-24-134-12,1,'Schéma unifilaire','Feuille 1/1');
+  return{markup:o,W,H};
+}
+
+/* ---------- plan export ---------- */
+function buildPlanExport(fid,pal=PAL_EX){
+  const f=floorsById[fid];const its=state.items.filter(i=>i.floor===fid);const refs=computeRefs();
+  const bb=toRect(itemsBox(its,planBox(f)))||{x:0,y:0,w:1000,h:800};
+  const u=Math.max(bb.w,bb.h)/1000,pad=40*u;
+  const used=[...new Set(its.filter(i=>i.type!=='piece').map(i=>i.type))];
+  const head=70*u,legX=bb.x+bb.w+pad*1.5,legW=380*u;
+  const legH=40*u+used.length*34*u+30*u+134*u;
+  const x0=bb.x-pad,y0=bb.y-pad-head;const W=(legX+legW+pad)-x0;const H=Math.max(bb.h+2*pad+head,legH+head+2*pad);
+  const ox={ex:true,pal,sel:null};const byId=Object.fromEntries(state.items.map(i=>[i.id,i]));
+  let o=`<rect x="${x0}" y="${y0}" width="${W}" height="${H}" style="fill:${pal.paper}"/>`;
+  o+=`<rect x="${x0+8*u}" y="${y0+8*u}" width="${W-16*u}" height="${H-16*u}" style="fill:none;stroke:${pal.ink};stroke-width:${1.2*u}"/>`;
+  o+=`<text x="${x0+pad}" y="${y0+44*u}" style="fill:${pal.ink};font-size:${24*u}px;font-family:${pal.font};font-weight:700">Plan de position — ${esc(f.name)}</text>`;
+  o+=planMarkup(f,pal)+state.links.map(l=>linkMarkup(l,byId,fid,pal)).join('');
+  o+=its.filter(i=>i.type==='piece').map(i=>itemMarkup(i,refs,ox)).join('')+its.filter(i=>i.type!=='piece').map(i=>itemMarkup(i,refs,ox)).join('');
+  const sbY=bb.y+bb.h+pad*0.6;o+=`<path d="M${bb.x} ${sbY} L${bb.x+100} ${sbY} M${bb.x} ${sbY-5*u} L${bb.x} ${sbY+5*u} M${bb.x+100} ${sbY-5*u} L${bb.x+100} ${sbY+5*u}" style="fill:none;stroke:${pal.ink};stroke-width:${1.4*u}"/><text x="${bb.x+108}" y="${sbY+4*u}" style="fill:${pal.ink};font-size:${11*u}px;font-family:${pal.mono}">1 m</text>`;
+  let ly=y0+head+pad*0.4;o+=`<text x="${legX}" y="${ly}" style="fill:${pal.ink};font-size:${15*u}px;font-family:${pal.font};font-weight:700">Légende</text>`;
+  used.forEach((ty,i)=>{const yy=ly+20*u+i*34*u;o+=`<g transform="translate(${legX+16*u} ${yy+12*u}) scale(${0.66*u})" style="color:${pal.ink}">${TYPES[ty].draw('currentColor',{n:1})}</g><text x="${legX+42*u}" y="${yy+16*u}" style="fill:${pal.ink};font-size:${12*u}px;font-family:${pal.font}">${esc(TYPES[ty].name)}</text>`});
+  const ly2=ly+20*u+used.length*34*u+10*u;
+  o+=`<text x="${legX}" y="${ly2+10*u}" style="fill:${pal.muted};font-size:${11*u}px;font-family:${pal.font}">Repères : lettre du circuit + n° du point (cf. unifilaire)</text>`;
+  o+=cartouche(pal,legX,y0+H-134*u-pad,u,'Plan de position',f.name);
+  return{markup:o,vb:`${x0} ${y0} ${W} ${H}`,pxW:Math.round(W/u*1.5),pxH:Math.round(H/u*1.5)};
+}
+const svgDoc=(inner,vb,w,h,extra='')=>`<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="${w}" height="${h}"${extra}>${inner}</svg>`;
+
+/* ---------- draw.io export ---------- */
+const b64=s=>btoa(unescape(encodeURIComponent(s)));
+function buildDrawioXml(){
+  const doc=new DOMParser().parseFromString(drawioSrc(),'application/xml');const refs=computeRefs();const S=state.settings;const size=+S.size||30;
+  const mk=(parent,tag,attrs)=>{const e=doc.createElement(tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,String(v));parent.appendChild(e);return e};
+  const geo=(cell,x,y,w,h)=>mk(cell,'mxGeometry',{x,y,width:w,height:h,as:'geometry'});
+  for(const d of [...doc.getElementsByTagName('diagram')]){
+    const root=d.getElementsByTagName('root')[0];if(!root)continue;const fid=d.getAttribute('id');
+    const its=state.items.filter(i=>i.floor===fid);if(!its.length)continue;
+    const lid='elec-layer-'+fid;mk(root,'mxCell',{id:lid,value:'Électricité',parent:'0'});
+    for(const it of its){const T=TYPES[it.type];if(!T)continue;
+      if(it.type==='piece'){const fs=Math.round(size*0.62);const cell=mk(root,'mxCell',{id:'elec-'+it.id,value:it.label||'Pièce',style:`text;html=1;align=center;verticalAlign=middle;fontSize=${fs};fontStyle=3;fontColor=#4f5a61;strokeColor=none;fillColor=none;`,vertex:'1',parent:lid});
+        const w=(it.label||'Pièce').length*fs*0.6+20;geo(cell,it.x-w/2,it.y-fs,w,fs*2);continue}
+      const c=circuitOf(it);const col=(S.colors&&c)?colorOf(c):'#16191b';
+      const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40" width="40" height="40">${T.draw(col,it)}</svg>`;
+      const cell=mk(root,'mxCell',{id:'elec-'+it.id,value:'',tooltip:T.name,style:`shape=image;html=1;imageAspect=0;aspect=fixed;image=data:image/svg+xml,${b64(svg)};rotation=${it.rot||0};`,vertex:'1',parent:lid});
+      geo(cell,it.x-size/2,it.y-size/2,size,size);
+      if(refs[it.id]){const fs=Math.round(size*0.42);const tc=mk(root,'mxCell',{id:'elec-r-'+it.id,value:refs[it.id],style:`text;html=1;align=left;verticalAlign=middle;fontSize=${fs};fontStyle=1;fontFamily=Courier New;fontColor=${col};strokeColor=none;fillColor=none;labelBackgroundColor=#ffffff;`,vertex:'1',parent:lid});
+        geo(tc,it.x+size/2,it.y-size*0.72-fs*0.7,fs*3.2,fs*1.4)}
+    }
+    const byId=Object.fromEntries(state.items.map(i=>[i.id,i]));
+    state.links.forEach((l,i)=>{const a=byId[l.a],b=byId[l.b];if(!a||!b||a.floor!==fid||b.floor!==fid)return;
+      const e=mk(root,'mxCell',{id:'elec-l-'+i+'-'+fid,value:'',style:'endArrow=none;dashed=1;html=1;strokeColor=#4f5a61;curved=1;',edge:'1',parent:lid});
+      const g=mk(e,'mxGeometry',{relative:'1',as:'geometry'});mk(g,'mxPoint',{x:a.x,y:a.y,as:'sourcePoint'});mk(g,'mxPoint',{x:b.x,y:b.y,as:'targetPoint'})});
+  }
+  const uni=buildUni(PAL_EX);const usvg=svgDoc(uni.markup,`0 0 ${uni.W} ${uni.H}`,uni.W,uni.H);
+  const nd=mk(doc.documentElement,'diagram',{id:'elec-unifilaire',name:'Unifilaire'});
+  const model=mk(nd,'mxGraphModel',{grid:'1',gridSize:'10',page:'1',pageScale:'1',pageWidth:uni.W,pageHeight:uni.H,math:'0',shadow:'0'});
+  const root=mk(model,'root',{});mk(root,'mxCell',{id:'0'});mk(root,'mxCell',{id:'1',parent:'0'});
+  const ic=mk(root,'mxCell',{id:'elec-uni-img',value:'',style:`shape=image;html=1;imageAspect=0;aspect=fixed;image=data:image/svg+xml,${b64(usvg)};`,vertex:'1',parent:'1'});geo(ic,0,0,uni.W,uni.H);
+  return new XMLSerializer().serializeToString(doc);
+}
+
+/* ---------- persistence ---------- */
+let dbRef=null,saveTimer=null,saving=false,saveAgain=false;
+function setSave(s,txt){const el=$('#saveState');el.dataset.s=s;el.textContent=txt||({ok:'Enregistré',busy:'Enregistrement…',local:'Enregistré dans ce navigateur',err:'Échec de l\'enregistrement'})[s]}
+function saveLocal(){try{localStorage.setItem('pe-state',JSON.stringify(state))}catch{}}
+function scheduleSave(){saveLocal();if(!dbRef){setSave('local');return}setSave('busy');clearTimeout(saveTimer);saveTimer=setTimeout(flushSave,900)}
+async function flushSave(){if(!dbRef)return;if(saving){saveAgain=true;return}saving=true;
+  try{const json=JSON.stringify(state);if(json.length>250000){setSave('err','Projet trop volumineux pour la sauvegarde partagée');saving=false;return}
+    await dbRef.set({json,updatedAt:state.updatedAt||Date.now()});setSave('ok')}catch(e){setSave('err')}
+  saving=false;if(saveAgain){saveAgain=false;flushSave()}}
+async function initStore(){
+  let local=null;try{const s=localStorage.getItem('pe-state');if(s)local=JSON.parse(s)}catch{}
+  if(local){state=mergeState(local);afterLoad()}
+  const cl=window.claude;if(!cl||!cl.use){setSave('local');return}
+  let db=null;try{db=await cl.use('db')}catch{db=null}
+  if(!db){setSave('local');return}
+  const ref=db.doc('projets/maison');let done=false;const timer=setTimeout(()=>{if(!done)setSave('local','Sauvegarde en ligne indisponible')},10000);
+  try{const snap=await ref.get();done=true;clearTimeout(timer);dbRef=ref;
+    if(snap.exists){const d=snap.data()||{};let remote=null;try{remote=JSON.parse(d.json)}catch{}
+      if(remote&&(!local||(remote.updatedAt||0)>=(local.updatedAt||0))){state=mergeState(remote);afterLoad();saveLocal()}
+      else if(local){flushSave()}}
+    else if(local&&local.items&&local.items.length)flushSave();
+    setSave('ok');
+  }catch(e){done=true;clearTimeout(timer);setSave('local','Sauvegarde en ligne indisponible')}
+}
+function afterLoad(){loadFloors();cur=histSnap();undoStack.length=0;sel=null;needFit=true;renderAll()}
+
+/* ---------- history ---------- */
+const undoStack=[];let cur='';
+const histSnap=()=>JSON.stringify({settings:state.settings,diffs:state.diffs,circuits:state.circuits,items:state.items,links:state.links});
+function commit(){const s=histSnap();if(s===cur)return;undoStack.push(cur);if(undoStack.length>100)undoStack.shift();cur=s;state.updatedAt=Date.now();scheduleSave();renderTabs();$('#undoBtn').disabled=!undoStack.length}
+function undo(){if(!undoStack.length)return;cur=undoStack.pop();Object.assign(state,JSON.parse(cur));state.updatedAt=Date.now();if(sel&&!itemById(sel))sel=null;scheduleSave();renderAll();toast('Action annulée')}
+
+/* ---------- view / stage ---------- */
+const svg=$('#stage');
+function applyView(){const r=svg.getBoundingClientRect();if(!r.width)return;svg.setAttribute('viewBox',`${view.x} ${view.y} ${r.width/view.k} ${r.height/view.k}`);status()}
+function fitTo(b){const r=svg.getBoundingClientRect();if(!r.width||!b)return;const pad=40;const k=Math.min((r.width-pad*2)/b.w,(r.height-pad*2-20)/b.h);view.k=Math.max(.02,k);
+  view.x=b.x-(r.width/view.k-b.w)/2;view.y=b.y-(r.height/view.k-b.h)/2;applyView()}
+let uniCache=null;
+function fit(){if(mode==='uni'){if(uniCache)fitTo({x:0,y:0,w:uniCache.W,h:uniCache.H});return}
+  const f=floorsById[curFloor];if(!f){fitTo({x:0,y:0,w:1200,h:900});return}fitTo(toRect(itemsBox(state.items.filter(i=>i.floor===curFloor),planBox(f)))||{x:0,y:0,w:1200,h:900})}
+function toWorld(e){const r=svg.getBoundingClientRect();return{x:view.x+(e.clientX-r.left)/view.k,y:view.y+(e.clientY-r.top)/view.k}}
+function zoomAt(f,cx,cy){const r=svg.getBoundingClientRect();if(cx==null){cx=r.left+r.width/2;cy=r.top+r.height/2}
+  const wx=view.x+(cx-r.left)/view.k,wy=view.y+(cy-r.top)/view.k;view.k=Math.min(40,Math.max(.02,view.k*f));view.x=wx-(cx-r.left)/view.k;view.y=wy-(cy-r.top)/view.k;applyView()}
+new ResizeObserver(()=>{if(needFit){needFit=false;fit()}else applyView()}).observe($('#stageWrap'));
+
+function renderStage(){
+  svg.classList.toggle('uni',mode==='uni');$('#gridR').style.display=mode==='uni'?'none':'';if(mode==='uni')$('#importCard').hidden=true;
+  if(mode==='uni'){uniCache=buildUni(PAL_APP);$('#planL').innerHTML=uniCache.markup;$('#linkL').innerHTML='';$('#itemL').innerHTML='';$('#ghostL').innerHTML='';updateHint();return}
+  $('#importCard').hidden=!!floors.length;
+  if(!floors.length){['planL','linkL','itemL','ghostL'].forEach(i=>$('#'+i).innerHTML='');$('#hint').hidden=true;return}
+  const f=floorsById[curFloor];if(!planCache[curFloor])planCache[curFloor]=planMarkup(f,PAL_APP);$('#planL').innerHTML=planCache[curFloor];renderItems();
+}
+function renderItems(){
+  if(mode!=='plan')return;const refs=computeRefs();const o={ex:false,pal:PAL_APP,sel,linkFrom};
+  const its=state.items.filter(i=>i.floor===curFloor);const byId=Object.fromEntries(state.items.map(i=>[i.id,i]));
+  $('#linkL').innerHTML=state.links.map(l=>linkMarkup(l,byId,curFloor,PAL_APP)).join('');
+  $('#itemL').innerHTML=its.filter(i=>i.type==='piece').map(i=>itemMarkup(i,refs,o)).join('')+its.filter(i=>i.type!=='piece').map(i=>itemMarkup(i,refs,o)).join('');
+  updateHint();
+}
+function updateHint(){
+  const h=$('#hint');let html='';
+  if(mode==='uni'){html=state.items.some(i=>circById(i.circuit))?'':'<b>Schéma unifilaire</b>Il se construit tout seul à partir des circuits. Place des points sur les plans et affecte-les à un circuit (onglet Circuits).'}
+  else if(linkFrom)html='<b>Liaison de commande</b>Clique sur le point à relier (ex. l\'interrupteur vers sa lampe). Échap pour annuler.';
+  else if(placing)html=`<b>${esc(TYPES[placing].name)}</b>Clique sur le plan pour poser. <kbd>R</kbd> pivote, <kbd>Échap</kbd> termine.`;
+  else if(!state.items.some(i=>i.floor===curFloor))html='<b>Plan vide</b>1. Nomme les pièces (Annotations › Nom de pièce).<br>2. Choisis un symbole dans la palette, clique sur le plan pour le poser.<br>3. Affecte chaque point à un circuit : l\'unifilaire se génère.';
+  h.innerHTML=html;h.hidden=!html;
+}
+function status(){
+  const m=$('#stMode');m.className=placing||linkFrom?'mode':'';
+  m.textContent=mode==='uni'?'Schéma unifilaire':linkFrom?'Liaison en cours':placing?'Placement : '+TYPES[placing].short:'1 unité = 1 cm';
+  if(!lastPos)$('#stPos').textContent=`${Math.round(view.k*100)} %`;
+}
+let lastPos=null;
+
+/* ---------- pointer interaction ---------- */
+let drag=null;
+const snapv=(v,e)=>{const s=+state.settings.snap||0;return(!s||e&&e.altKey)?Math.round(v):Math.round(v/s)*s};
+svg.addEventListener('pointerdown',e=>{
+  if(e.button!==0&&e.pointerType==='mouse'&&e.button!==1)return;
+  const w=toWorld(e);const g=e.target.closest&&e.target.closest('.it');
+  if(mode==='plan'&&placing&&e.button===0){placeAt(w,e);return}
+  if(mode==='plan'&&g&&e.button===0){const id=g.dataset.id;
+    if(linkFrom&&id!==linkFrom){addLink(linkFrom,id);return}
+    if(sel!==id){sel=id;panelTab='item';renderItems();renderPanel()}
+    const it=itemById(id);drag={type:'item',id,sx:w.x,sy:w.y,ox:it.x,oy:it.y,moved:false};svg.setPointerCapture(e.pointerId);return}
+  drag={type:'pan',cx:e.clientX,cy:e.clientY,vx:view.x,vy:view.y,moved:false};svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener('pointermove',e=>{
+  const w=toWorld(e);lastPos=w;
+  $('#stPos').textContent=mode==='plan'?`x ${Math.round(w.x)} · y ${Math.round(w.y)} cm · ${Math.round(view.k*100)} %`:`${Math.round(view.k*100)} %`;
+  if(!drag){if(placing&&mode==='plan'){$('#ghostL').innerHTML=itemMarkup({id:'ghost',type:placing,x:snapv(w.x,e),y:snapv(w.y,e),rot:placeRot,n:1,label:'Pièce'},{},{ex:true,pal:PAL_APP})}return}
+  if(drag.type==='item'){const it=itemById(drag.id);const dx=w.x-drag.sx,dy=w.y-drag.sy;if(!drag.moved&&Math.hypot(dx,dy)*view.k<3)return;drag.moved=true;
+    it.x=snapv(drag.ox+dx,e);it.y=snapv(drag.oy+dy,e);renderItems()}
+  else{const dx=e.clientX-drag.cx,dy=e.clientY-drag.cy;if(!drag.moved&&Math.hypot(dx,dy)<3)return;drag.moved=true;svg.classList.add('panning');
+    view.x=drag.vx-dx/view.k;view.y=drag.vy-dy/view.k;applyView()}
+});
+function endDrag(e){if(!drag)return;const d=drag;drag=null;svg.classList.remove('panning');
+  if(d.type==='item'&&d.moved){commit();renderPanel()}
+  if(d.type==='pan'&&!d.moved&&mode==='plan'){if(linkFrom){linkFrom=null;renderItems();status()}else if(sel){sel=null;renderItems();renderPanel()}}}
+svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
+svg.addEventListener('pointerleave',()=>{if(!drag){$('#ghostL').innerHTML='';lastPos=null;status()}});
+svg.addEventListener('wheel',e=>{e.preventDefault();zoomAt(Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0015)),e.clientX,e.clientY)},{passive:false});
+$('#zIn').onclick=()=>zoomAt(1.3);$('#zOut').onclick=()=>zoomAt(1/1.3);$('#zFit').onclick=()=>fit();
+
+function placeAt(w,e){
+  const T=TYPES[placing];const it={id:uid(),type:placing,floor:curFloor,x:snapv(w.x,e),y:snapv(w.y,e),rot:placeRot,n:1};
+  if(T.h!==undefined)it.h=T.h;if(placing==='piece')it.label='Pièce';
+  state.items.push(it);const cid=defaultCircuitFor(placing);if(cid)assign(it,cid);
+  sel=it.id;commit();
+  if(placing==='piece'){placing=null;$('#ghostL').innerHTML='';updatePalette();panelTab='item';renderItems();renderPanel();status();
+    setTimeout(()=>{const i=$('#f-label');if(i){i.focus();i.select()}},30);return}
+  renderItems();if(panelTab==='item'||panelTab==='circ')renderPanel();
+}
+function addLink(a,b){if(!state.links.some(l=>(l.a===a&&l.b===b)||(l.a===b&&l.b===a)))state.links.push({a,b});linkFrom=null;commit();renderItems();renderPanel();status();toast('Liaison ajoutée')}
+function removeItem(id){state.items=state.items.filter(i=>i.id!==id);state.links=state.links.filter(l=>l.a!==id&&l.b!==id);if(sel===id)sel=null;commit();renderItems();renderPanel()}
+function duplicate(id){const it=itemById(id);if(!it)return;const s=+state.settings.size||30;const n={...it,id:uid(),x:it.x+s,y:it.y+s};if(n.circuit)n.ord=nextOrd(n.circuit);state.items.push(n);sel=n.id;commit();renderItems();renderPanel()}
+function rotateSel(d){const it=itemById(sel);if(!it)return;it.rot=(((it.rot||0)+d)%360+360)%360;commit();renderItems();renderPanel()}
+
+document.addEventListener('keydown',e=>{
+  const tag=(e.target.tagName||'').toLowerCase();const typing=tag==='input'||tag==='textarea'||tag==='select';
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!typing){e.preventDefault();undo();return}
+  if(typing)return;
+  if(e.key==='Escape'){if(placing||linkFrom){placing=null;linkFrom=null;$('#ghostL').innerHTML='';updatePalette();renderItems();status()}else if(sel){sel=null;renderItems();renderPanel()}closeMenu();return}
+  if(mode!=='plan')return;
+  if(e.key==='r'||e.key==='R'){const d=e.shiftKey?-45:90;if(placing){placeRot=((placeRot+d)%360+360)%360;if(lastPos)$('#ghostL').innerHTML=itemMarkup({id:'ghost',type:placing,x:snapv(lastPos.x),y:snapv(lastPos.y),rot:placeRot,n:1,label:'Pièce'},{},{ex:true,pal:PAL_APP})}else if(sel)rotateSel(d);e.preventDefault();return}
+  if(!sel)return;
+  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();removeItem(sel);return}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();duplicate(sel);return}
+  const arrows={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+  if(arrows[e.key]){e.preventDefault();const it=itemById(sel);const st=(+state.settings.snap||1)*(e.shiftKey?10:1);it.x+=arrows[e.key][0]*st;it.y+=arrows[e.key][1]*st;commit();renderItems()}
+});
+
+/* ---------- chrome: tabs, palette ---------- */
+function renderTabs(){
+  $('#floorTabs').innerHTML=floors.map(f=>{const n=state.items.filter(i=>i.floor===f.id&&i.type!=='piece').length;
+    return `<button type="button" class="tab" data-floor="${esc(f.id)}" aria-selected="${mode==='plan'&&curFloor===f.id}">${esc(f.name)}${n?`<span class="cnt">${n}</span>`:''}</button>`}).join('')+
+    `<span class="tsep"></span><button type="button" class="tab" data-floor="__uni" aria-selected="${mode==='uni'}">Schéma unifilaire</button>`;
+}
+function renderPalette(){
+  $('#palette').innerHTML=CATS.map(([k,l])=>`<div class="pcat"><h4>${l}</h4>${Object.entries(TYPES).filter(([,t])=>t.cat===k).map(([id,t])=>
+    `<button type="button" class="pitem" data-type="${id}" aria-pressed="false" title="${esc(t.name)}"><svg viewBox="-22 -22 44 44" aria-hidden="true">${t.draw('currentColor',{n:1})}</svg><span>${esc(t.short||t.name)}</span></button>`).join('')}</div>`).join('');
+}
+function updatePalette(){document.querySelectorAll('.pitem').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.type===placing)));svg.classList.toggle('placing',!!placing)}
+function switchFloor(id){
+  views[mode==='uni'?'__uni':curFloor]={...view};
+  if(id==='__uni'){mode='uni';placing=null;linkFrom=null;updatePalette()}else{mode='plan';curFloor=id;try{localStorage.setItem('pe-floor',id)}catch{}}
+  renderTabs();renderStage();const v=views[id];if(v){view={...v};applyView()}else fit();status();
+}
+
+/* ---------- side panels ---------- */
+const field=(label,ctrl,help)=>`<label class="fld"><span>${label}</span>${ctrl}${help?`<small>${help}</small>`:''}</label>`;
+const fieldDiv=(label,ctrl,help)=>`<div class="fld"><span>${label}</span>${ctrl}${help?`<small>${help}</small>`:''}</div>`;
+const opt=(v,l,cur)=>`<option value="${esc(v)}"${String(v)===String(cur)?' selected':''}>${esc(l)}</option>`;
+function renderPanel(){
+  document.querySelectorAll('[data-ptab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.ptab===panelTab)));
+  ['item','circ','proj'].forEach(t=>$('#panel-'+t).hidden=t!==panelTab);
+  if(panelTab==='item')renderItemPanel();else if(panelTab==='circ')renderCircPanel();else renderProjPanel();
+}
+function renderItemPanel(){
+  const el=$('#panel-item');const it=sel&&itemById(sel);
+  if(!it){const nPts=state.items.filter(i=>TYPES[i.type]&&TYPES[i.type].circuit).length;
+    el.innerHTML=`<div class="help"><h3>Aucun élément sélectionné</h3><p>Choisis un symbole dans la palette puis clique sur le plan. Clique un symbole posé pour le modifier ou le déplacer.</p>
+    <div class="keys"><kbd>R</kbd><span>Pivoter de 90° (<kbd>Maj</kbd>+<kbd>R</kbd> : −45°)</span><kbd>Suppr</kbd><span>Supprimer</span><span><kbd>Ctrl</kbd>+<kbd>D</kbd></span><span>Dupliquer</span><kbd>Flèches</kbd><span>Décaler (<kbd>Maj</kbd> : ×10)</span><kbd>Alt</kbd><span>Déplacer sans accrochage</span><span><kbd>Ctrl</kbd>+<kbd>Z</kbd></span><span>Annuler</span><kbd>Échap</kbd><span>Arrêter le placement</span></div>
+    <p>${nPts} point${nPts>1?'s':''} électrique${nPts>1?'s':''} sur l'ensemble des étages · ${state.circuits.length} circuit${state.circuits.length>1?'s':''}.</p></div>`;return}
+  const T=TYPES[it.type];const refs=computeRefs();const c=circuitOf(it);
+  const typeOpts=CATS.map(([k,l])=>`<optgroup label="${l}">${Object.entries(TYPES).filter(([,t])=>t.cat===k&&(it.type==='piece')===(k==='annot')).map(([id,t])=>opt(id,t.name,it.type)).join('')}</optgroup>`).join('');
+  let h=`<div class="ph"><div class="ph-sym" style="color:${c&&state.settings.colors?colorOf(c):'var(--ink)'}"><svg viewBox="-22 -22 44 44">${T.draw('currentColor',it)}</svg></div><div style="min-width:0"><h2>${esc(it.type==='piece'?(it.label||'Pièce'):T.name)}</h2><p class="meta">${T.circuit?(refs[it.id]?`<span class="ref-pill" style="--c:${colorOf(c)}">${refs[it.id]}</span>`:'<span class="ref-pill none">Sans circuit</span>')+' · ':''}${esc(floorName(it.floor))}</p></div></div><div class="fields">`;
+  if(it.type==='piece')h+=field('Nom de la pièce',`<input id="f-label" type="text" value="${esc(it.label||'')}" autocomplete="off">`,'Sert à décrire les points proches dans l\'unifilaire et la liste.');
+  else h+=field('Type de symbole',`<select id="f-type">${typeOpts}</select>`);
+  if(T.circuit)h+=field('Circuit',`<select id="f-circ">${opt('','— Non affecté —',it.circuit||'')}${state.circuits.slice().sort(refSort).map(c=>opt(c.id,`${c.ref} · ${c.name}`,it.circuit||'')).join('')}<option value="__new">+ Nouveau circuit…</option></select>`);
+  if(T.multi)h+=fieldDiv('Nombre de socles',`<div class="seg" id="f-n">${[1,2,3,4].map(n=>`<button type="button" data-n="${n}" aria-pressed="${(it.n||1)===n}">${n}</button>`).join('')}</div>`,'Une prise multiple compte pour 1 point dans la limite de 8 par circuit.');
+  if(T.h!==undefined)h+=field('Hauteur de pose (cm)',`<input id="f-h" type="number" min="0" step="5" value="${it.h??''}">`);
+  if(T.ip)h+=`<label class="chk"><input type="checkbox" id="f-ip"${it.ip?' checked':''}> Étanche (IP44 ou plus)</label>`;
+  if(it.type!=='piece')h+=field('Pièce',`<input id="f-room" type="text" value="${esc(it.room||'')}" placeholder="${esc(autoRoom(it)||'Aucune pièce nommée à proximité')}">`,it.room?'':'Laisser vide pour reprendre le nom de pièce le plus proche.');
+  h+=field('Remarque',`<input id="f-note" type="text" value="${esc(it.note||'')}">`);
+  if(it.type!=='piece')h+=fieldDiv('Orientation',`<div class="seg"><button type="button" data-rot="-90">↺ 90°</button><button type="button" data-rot="-45">↺ 45°</button><span class="mono">${it.rot||0}°</span><button type="button" data-rot="45">↻ 45°</button><button type="button" data-rot="90">↻ 90°</button></div>`);
+  if(it.type!=='piece'){const ls=state.links.map((l,i)=>({l,i})).filter(({l})=>l.a===it.id||l.b===it.id);
+    h+=`<div class="fld"><span>Liaisons de commande</span>${ls.length?`<ul class="linklist">${ls.map(({l,i})=>{const o=itemById(l.a===it.id?l.b:l.a);return `<li><span>${esc(o?(refs[o.id]||'—')+' · '+TYPES[o.type].short:'?')}</span><button type="button" class="btn sm" data-unlink="${i}">Retirer</button></li>`}).join('')}</ul>`:'<small>Relie par ex. un interrupteur à la lampe qu\'il commande (trait pointillé sur le plan).</small>'}<div><button type="button" class="btn sm" data-act="link" style="margin-top:4px">Relier à un autre point</button></div></div>`}
+  h+=`</div><div class="acts"><button type="button" class="btn" data-act="dup">Dupliquer</button><button type="button" class="btn danger" data-act="del">Supprimer</button></div>`;
+  el.innerHTML=h;
+}
+$('#panel-item').addEventListener('input',e=>{const it=itemById(sel);if(!it)return;const id=e.target.id;
+  if(id==='f-label'){it.label=e.target.value;renderItems();const h2=$('#panel-item h2');if(h2)h2.textContent=it.label||'Pièce'}
+  else if(id==='f-room')it.room=e.target.value;else if(id==='f-note')it.note=e.target.value;});
+$('#panel-item').addEventListener('change',e=>{const it=itemById(sel);if(!it)return;const t=e.target,id=t.id;
+  if(id==='f-type'){it.type=t.value;const T=TYPES[it.type];if(!T.circuit)it.circuit=null;if(T.h!==undefined&&it.h==null)it.h=T.h;commit();renderItems();renderItemPanel();return}
+  if(id==='f-circ'){if(t.value==='__new'){const c=newCircuit(natureOfKind(TYPES[it.type].kind));assign(it,c.id);toast(`Circuit ${c.ref} créé — complète-le dans l'onglet Circuits`)}else assign(it,t.value||null);commit();renderItems();renderItemPanel();return}
+  if(id==='f-h'){it.h=t.value===''?undefined:+t.value}
+  if(id==='f-ip'){it.ip=t.checked;renderItems()}
+  commit();});
+$('#panel-item').addEventListener('click',e=>{const it=itemById(sel);if(!it)return;const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.n){it.n=+b.dataset.n;commit();renderItems();renderItemPanel()}
+  else if(b.dataset.rot)rotateSel(+b.dataset.rot);
+  else if(b.dataset.unlink!=null){state.links.splice(+b.dataset.unlink,1);commit();renderItems();renderItemPanel()}
+  else if(b.dataset.act==='link'){linkFrom=it.id;placing=null;updatePalette();renderItems();status()}
+  else if(b.dataset.act==='dup')duplicate(it.id);
+  else if(b.dataset.act==='del')removeItem(it.id);});
+
+function renderCircPanel(){
+  const S=state.settings;const ch=checks();const refs=computeRefs();
+  let h=`<section class="block"><h3>Contrôles</h3><ul class="checks">${ch.map(([k,m])=>`<li class="${k}">${esc(m)}</li>`).join('')}</ul><p class="fine">Contrôles indicatifs sur quelques règles du RGIE. Le contrôle de conformité par un organisme agréé reste la référence.</p></section>`;
+  h+=`<section class="block"><h3>Arrivée et protection générale</h3><div class="fields">
+    ${field('Alimentation',`<select data-s="alim">${['Monophasé 230 V','Triphasé 3×230 V','Triphasé 3N×400 V'].map(v=>opt(v,v,S.alim)).join('')}</select>`)}
+    <div class="row2">${field('Disj. branchement',`<select data-s="branchement">${[25,32,40,50,63].map(v=>opt(v,v+' A',S.branchement)).join('')}</select>`)}${field('Terre (Ω)',`<input data-s="terre" type="number" min="0" step="1" value="${esc(S.terre)}" placeholder="ex. 25">`)}</div>
+    <div class="row2">${field('DDR général',`<select data-s="gen.sens">${[300,100,30].map(v=>opt(v,v+' mA',S.gen.sens)).join('')}</select>`)}${field('Type',`<select data-s="gen.type">${['A','F','B'].map(v=>opt(v,'Type '+v,S.gen.type)).join('')}</select>`)}</div>
+  </div></section>`;
+  h+=`<section class="block"><div class="bh"><h3>Différentiels additionnels</h3><button type="button" class="btn sm" data-act="add-diff">+ Ajouter</button></div>${state.diffs.map(d=>{const n=state.circuits.filter(c=>c.diff===d.id).length;return `<div class="card" data-d="${d.id}">
+    ${field('Nom',`<input type="text" data-df="name" value="${esc(d.name)}">`)}
+    <div class="row3">${field('Sensibilité',`<select data-df="sens">${[30,100,300].map(v=>opt(v,v+' mA',d.sens)).join('')}</select>`)}${field('Type',`<select data-df="type">${['A','F','B'].map(v=>opt(v,v,d.type)).join('')}</select>`)}${field('Calibre',`<select data-df="calibre">${[25,40,63].map(v=>opt(v,v+' A',d.calibre)).join('')}</select>`)}</div>
+    <div class="cfoot"><span>${n} circuit${n>1?'s':''}</span><button type="button" class="btn sm danger${confirmKey==='d'+d.id?' armed':''}" data-act="del-diff">${confirmKey==='d'+d.id?'Confirmer':'Supprimer'}</button></div></div>`}).join('')||'<p class="fine">Aucun différentiel additionnel : les circuits sont alors sous le DDR général.</p>'}</section>`;
+  h+=`<section class="block"><div class="bh"><h3>Circuits</h3><button type="button" class="btn sm" data-act="add-circ">+ Ajouter</button></div>`;
+  for(const c of state.circuits.slice().sort(refSort)){const pts=pointsOf(c.id);
+    h+=`<div class="card" data-c="${c.id}"><div class="top1"><button type="button" class="swatch" data-act="color" style="background:${colorOf(c)}" title="Changer la couleur"></button><input class="ref" type="text" data-cf="ref" value="${esc(c.ref)}" aria-label="Repère"><input type="text" data-cf="name" value="${esc(c.name)}" aria-label="Désignation"></div>
+      <div class="row2">${field('Nature',`<select data-cf="nature">${NATURES.map(([v,l])=>opt(v,l,c.nature)).join('')}</select>`)}${field('Protégé par',`<select data-cf="diff">${opt('',`DDR général ${S.gen.sens} mA`,c.diff&&state.diffs.some(d=>d.id===c.diff)?c.diff:'')}${state.diffs.map(d=>opt(d.id,d.name,c.diff)).join('')}</select>`)}</div>
+      <div class="row2">${field('Disjoncteur',`<select data-cf="calibre">${CALS.map(v=>opt(v,v+' A',c.calibre)).join('')}</select>`)}${field('Section',`<select data-cf="section">${SECS.map(v=>opt(v,fmt(v)+' mm²',c.section)).join('')}</select>`)}</div>
+      <div class="row2">${field('Câble',`<input type="text" data-cf="cable" value="${esc(c.cable||'')}" placeholder="XVB">`)}${field('Conducteurs',`<select data-cf="cond">${[2,3,4,5].map(v=>opt(v,v+'G',c.cond)).join('')}</select>`)}</div>
+      <details${openCards.has(c.id)?' open':''} data-det="${c.id}"><summary>${pts.length} point${pts.length>1?'s':''} · ${esc(cableStr(c))}</summary>${pts.length?`<ul class="plist">${pts.map((p,i)=>`<li><span class="r">${refs[p.id]}</span><span class="d" title="${esc(TYPES[p.type].name)}">${esc(TYPES[p.type].short)}${p.n>1?' ×'+p.n:''} · ${esc(roomOf(p)||floorName(p.floor))}</span><span class="b"><button type="button" data-mv="-1" data-p="${p.id}" ${i===0?'disabled':''} title="Monter">↑</button><button type="button" data-mv="1" data-p="${p.id}" ${i===pts.length-1?'disabled':''} title="Descendre">↓</button><button type="button" data-go="${p.id}" title="Afficher sur le plan">Voir</button></span></li>`).join('')}</ul>`:'<p class="fine">Sélectionne un point sur le plan et choisis ce circuit.</p>'}</details>
+      <div class="cfoot"><span>${esc(diffOf(c)?diffOf(c).name:'DDR général')}</span><button type="button" class="btn sm danger${confirmKey==='c'+c.id?' armed':''}" data-act="del-circ">${confirmKey==='c'+c.id?'Confirmer':'Supprimer'}</button></div></div>`}
+  h+=`</section>`;$('#panel-circ').innerHTML=h;
+}
+$('#panel-circ').addEventListener('toggle',e=>{const d=e.target.closest&&e.target.closest('details');if(!d)return;d.open?openCards.add(d.dataset.det):openCards.delete(d.dataset.det)},true);
+$('#panel-circ').addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.s){const S=state.settings;const k=t.dataset.s;const num=['branchement','gen.sens'].includes(k);const v=num?+t.value:t.value;
+    if(k.startsWith('gen.'))S.gen[k.slice(4)]=v;else S[k]=v;commit();renderCircPanel();if(mode==='uni')renderStage();return}
+  const dc=t.closest('[data-d]');if(dc&&t.dataset.df){const d=state.diffs.find(x=>x.id===dc.dataset.d);const k=t.dataset.df;d[k]=k==='name'||k==='type'?t.value:+t.value;commit();renderCircPanel();if(mode==='uni')renderStage();return}
+  const cc=t.closest('[data-c]');if(cc&&t.dataset.cf){const c=circById(cc.dataset.c);const k=t.dataset.cf;
+    if(k==='ref'){const v=t.value.trim().toUpperCase().slice(0,4);if(!v||state.circuits.some(x=>x!==c&&x.ref===v)){toast('Ce repère est vide ou déjà utilisé');renderCircPanel();return}c.ref=v}
+    else if(['calibre','section','cond'].includes(k))c[k]=+t.value;
+    else if(k==='nature'){c.nature=t.value;const d=CDEF[c.nature];if(d&&!pointsOf(c.id).length){c.calibre=d.cal;c.section=d.sec}}
+    else c[k]=t.value;
+    commit();renderCircPanel();renderItems();if(mode==='uni')renderStage();}
+});
+$('#panel-circ').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  const act=b.dataset.act;
+  if(act==='add-diff'){const n=state.diffs.length+1;state.diffs.push({id:uid(),name:`DDR 30 mA n°${n}`,sens:30,type:'A',calibre:40});confirmKey=null;commit();renderCircPanel();if(mode==='uni')renderStage();return}
+  if(act==='add-circ'){const c=newCircuit('mixte');openCards.add(c.id);confirmKey=null;commit();renderCircPanel();if(mode==='uni')renderStage();setTimeout(()=>{const i=document.querySelector(`[data-c="${c.id}"] [data-cf="name"]`);if(i){i.focus();i.select();i.scrollIntoView({block:'center'})}},30);return}
+  if(act==='del-diff'){const id=b.closest('[data-d]').dataset.d;if(confirmKey!=='d'+id){confirmKey='d'+id;renderCircPanel();return}
+    state.diffs=state.diffs.filter(d=>d.id!==id);state.circuits.forEach(c=>{if(c.diff===id)c.diff=''});confirmKey=null;commit();renderCircPanel();if(mode==='uni')renderStage();return}
+  if(act==='del-circ'){const id=b.closest('[data-c]').dataset.c;if(confirmKey!=='c'+id){confirmKey='c'+id;renderCircPanel();return}
+    state.circuits=state.circuits.filter(c=>c.id!==id);state.items.forEach(i=>{if(i.circuit===id)i.circuit=null});confirmKey=null;commit();renderCircPanel();renderItems();if(mode==='uni')renderStage();return}
+  if(act==='color'){const c=circById(b.closest('[data-c]').dataset.c);c.color=((c.color||0)+1)%CCOL.length;commit();renderCircPanel();renderItems();return}
+  if(b.dataset.mv){const p=itemById(b.dataset.p);const pts=pointsOf(p.circuit);const i=pts.indexOf(p),j=i+(+b.dataset.mv);if(j<0||j>=pts.length)return;
+    pts.forEach((q,k)=>q.ord=k+1);[pts[i].ord,pts[j].ord]=[pts[j].ord,pts[i].ord];commit();renderCircPanel();renderItems();if(mode==='uni')renderStage();return}
+  if(b.dataset.go){const p=itemById(b.dataset.go);if(!p)return;if(mode!=='plan'||curFloor!==p.floor)switchFloor(p.floor);sel=p.id;
+    const r=svg.getBoundingClientRect();view.x=p.x-r.width/view.k/2;view.y=p.y-r.height/view.k/2;applyView();renderItems();panelTab='item';renderPanel()}
+});
+
+function exportButtons(){return [
+  ['plan','Plan de position (SVG)',`Étage affiché, avec légende et cartouche`],
+  ['uni','Schéma unifilaire (SVG)','Généré à partir des circuits'],
+  ['drawio','Fichier draw.io complet (.drawio.svg)','Tes pages + calque Électricité + page Unifilaire'],
+  ['csv','Liste des points (CSV)','Repères, pièces, hauteurs, pour l\'installateur'],
+  ['json','Sauvegarde du projet (JSON)','Pour archiver ou recharger plus tard'],
+  ['copyxml','Copier le XML draw.io','À coller dans un fichier .drawio'],
+]}
+function renderProjPanel(){
+  const S=state.settings;
+  $('#panel-proj').innerHTML=`<section class="block"><h3>Cartouche</h3><div class="fields">
+    ${field('Adresse de l\'installation',`<input type="text" data-p="adresse" value="${esc(S.adresse)}">`)}
+    ${field('Propriétaire',`<input type="text" data-p="proprietaire" value="${esc(S.proprietaire)}">`)}
+    <div class="row2">${field('Dessiné par',`<input type="text" data-p="auteur" value="${esc(S.auteur)}">`)}${field('Date',`<input type="date" data-p="date" value="${esc(S.date)}">`)}</div></div></section>
+  <section class="block"><h3>Affichage</h3><div class="fields">
+    ${field(`Taille des symboles · ${S.size} cm`,`<input type="range" min="16" max="60" step="2" data-p="size" value="${S.size}">`)}
+    ${field('Accrochage',`<select data-p="snap">${[[0,'Libre'],[1,'1 cm'],[5,'5 cm'],[10,'10 cm'],[25,'25 cm']].map(([v,l])=>opt(v,l,S.snap)).join('')}</select>`)}
+    <label class="chk"><input type="checkbox" data-p="refs"${S.refs?' checked':''}> Afficher les repères (A1, B3…)</label>
+    <label class="chk"><input type="checkbox" data-p="colors"${S.colors?' checked':''}> Couleur par circuit (aussi dans l'export)</label></div></section>
+  <section class="block"><h3>Exporter</h3><div class="expl">${exportButtons().map(([k,l,s])=>`<button type="button" class="btn" data-export="${k}">${l}<small>${s}</small></button>`).join('')}</div></section>
+  <section class="block"><h3>Plan de base</h3><p class="fine" style="margin:0 0 8px">${floors.length?`${floors.length} page${floors.length>1?'s':''} importée${floors.length>1?'s':''}. Après une modification dans draw.io, réimporte le fichier : les symboles sont conservés (pages associées par nom).`:'Aucun plan importé pour le moment.'} Le plan reste dans ton navigateur et dans tes sauvegardes JSON.</p>
+    <div class="acts" style="margin:0;padding:0;border:0"><button type="button" class="btn" data-act="imp-drawio">Importer un plan draw.io</button></div></section>
+  <section class="block"><h3>Projet</h3><div class="acts" style="margin:0;padding:0;border:0"><button type="button" class="btn" data-act="imp-json">Charger une sauvegarde</button><button type="button" class="btn danger${confirmKey==='reset'?' armed':''}" data-act="reset">${confirmKey==='reset'?'Confirmer : tout effacer':'Tout réinitialiser'}</button></div></section>`;
+}
+$('#panel-proj').addEventListener('input',e=>{const t=e.target;if(t.dataset.p==='size'){state.settings.size=+t.value;t.closest('.fld').querySelector('span').textContent=`Taille des symboles · ${t.value} cm`;renderItems()}});
+$('#panel-proj').addEventListener('change',e=>{const t=e.target,k=t.dataset.p;if(!k)return;const S=state.settings;
+  if(t.type==='checkbox')S[k]=t.checked;else if(k==='size'||k==='snap')S[k]=+t.value;else S[k]=t.value;commit();renderStage()});
+$('#panel-proj').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.act;
+  if(a==='imp-drawio')$('#fileDrawio').click();else if(a==='imp-json')$('#fileJson').click();
+  else if(a==='reset'){if(confirmKey!=='reset'){confirmKey='reset';renderProjPanel();return}confirmKey=null;const keep=state.drawio;state=defaultState();state.drawio=keep;state.updatedAt=Date.now();sel=null;commit();scheduleSave();renderAll();toast('Projet réinitialisé — Ctrl+Z pour revenir')}});
+
+/* ---------- import ---------- */
+$('#fileDrawio').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)importDrawioFile(f)});
+async function importDrawioFile(f){
+  try{const xml=await normalizeDrawio(await f.text());const nf=parseDrawio(xml);if(!nf.length)throw new Error('Aucune page trouvée dans ce fichier.');
+    const oldNames=Object.fromEntries(floors.map(x=>[x.id,x.name]));const newIds=new Set(nf.map(x=>x.id));const byName=Object.fromEntries(nf.map(x=>[x.name,x.id]));
+    let lost=0;state.items.forEach(i=>{if(!newIds.has(i.floor)){const m=byName[oldNames[i.floor]];if(m)i.floor=m;else{i.floor=nf[0].id;lost++}}});
+    state.drawio=xml;mode='plan';loadFloors();state.updatedAt=Date.now();cur=histSnap();scheduleSave();needFit=true;renderAll();fit();
+    toast(`Plan importé : ${nf.length} page${nf.length>1?'s':''}${lost?` · ${lost} symbole(s) déplacés sur « ${nf[0].name} »`:''}`)}
+  catch(err){toast(err.message||'Import impossible')}}
+$('#fileJson').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{const s=JSON.parse(await f.text());if(!s||!Array.isArray(s.items))throw new Error();state=mergeState(s);state.updatedAt=Date.now();afterLoad();scheduleSave();toast('Projet chargé')}
+  catch{toast('Ce fichier n\'est pas une sauvegarde de ce plan.')}});
+
+/* ---------- export ---------- */
+let dlNs;const getDl=()=>dlNs||(dlNs=(window.claude&&window.claude.use)?window.claude.use('downloads').catch(()=>null):Promise.resolve(null));
+async function download(filename,data){
+  const dl=await getDl();if(!dl){if(blobDownload(filename,data))return;showCopy(filename,data);return}
+  try{await dl.save({filename,data});toast('Exporté : '+filename)}
+  catch(e){const c=e&&e.code;if(c==='declined')toast('Export annulé');else if(c==='rate_limited')toast('Une fenêtre d\'enregistrement est déjà ouverte');else showCopy(filename,data)}
+}
+function blobDownload(fn,data){try{const types={svg:'image/svg+xml',csv:'text/csv;charset=utf-8',json:'application/json'};const ext=fn.split('.').pop();
+  const u=URL.createObjectURL(new Blob([data],{type:types[ext]||'text/plain'}));const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);toast('Exporté : '+fn);return true}catch{return false}}
+function showCopy(filename,data){const m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<div role="dialog" aria-label="Copier le contenu"><h3>${esc(filename)}</h3><p class="fine" style="margin:0">Le téléchargement n'est pas disponible ici. Copie le contenu et enregistre-le sous ce nom.</p><textarea readonly></textarea><div class="acts" style="margin:0;padding:0;border:0"><button type="button" class="btn primary" data-a="copy">Copier</button><button type="button" class="btn" data-a="close">Fermer</button></div></div>`;
+  m.querySelector('textarea').value=data;document.body.appendChild(m);
+  m.addEventListener('click',async e=>{const a=e.target.dataset&&e.target.dataset.a;if(a==='close'||e.target===m)m.remove();
+    if(a==='copy'){const ta=m.querySelector('textarea');try{await navigator.clipboard.writeText(data);toast('Copié')}catch{ta.focus();ta.select();toast('Texte sélectionné : Ctrl+C pour copier')}}})}
+const slug=s=>String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'').toLowerCase();
+async function doExport(k){closeMenu();
+  if((k==='plan'||k==='drawio'||k==='copyxml')&&!floors.length){toast('Importe d\'abord ton plan draw.io');return}
+  if(k==='plan'){const f=curFloor;const r=buildPlanExport(f);await download(`plan_position_${slug(floorName(f))}.svg`,svgDoc(r.markup,r.vb,r.pxW,r.pxH))}
+  else if(k==='uni'){const u=buildUni(PAL_EX);await download('schema_unifilaire.svg',svgDoc(u.markup,`0 0 ${u.W} ${u.H}`,u.W,u.H))}
+  else if(k==='drawio'){const xml=buildDrawioXml();const r=buildPlanExport(curFloor);await download('plan_electrique.drawio.svg',svgDoc(r.markup,r.vb,r.pxW,r.pxH,` content="${esc(xml)}"`))}
+  else if(k==='csv'){const refs=computeRefs();const rows=[['Repère','Circuit','Désignation circuit','Point','Socles','Étage','Pièce','Hauteur (cm)','Étanche','Remarque']];
+    const its=state.items.filter(i=>TYPES[i.type]&&i.type!=='piece').slice().sort((a,b)=>{const ca=circuitOf(a),cb=circuitOf(b);if(!ca!==!cb)return ca?-1:1;if(ca&&cb&&ca!==cb)return refSort(ca,cb);return(a.ord||0)-(b.ord||0)});
+    its.forEach(i=>{const c=circuitOf(i);rows.push([refs[i.id]||'',c?c.ref:'',c?c.name:'',TYPES[i.type].name,TYPES[i.type].multi?(i.n||1):'',floorName(i.floor),roomOf(i),i.h??'',i.ip?'oui':'',i.note||''])});
+    const csv='﻿'+rows.map(r=>r.map(v=>{v=String(v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(';')).join('\r\n');await download('liste_points.csv',csv)}
+  else if(k==='json'){await download(`plan_electrique_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(state,null,1))}
+  else if(k==='copyxml'){const xml=buildDrawioXml();try{await navigator.clipboard.writeText(xml);toast('XML draw.io copié')}catch{showCopy('plan_electrique.drawio',xml)}}
+}
+function renderMenu(){$('#exportMenu').innerHTML=exportButtons().map(([k,l,s])=>`<button type="button" data-export="${k}">${l}<small>${s}</small></button>`).join('')}
+function closeMenu(){$('#exportMenu').hidden=true;$('#exportBtn').setAttribute('aria-expanded','false')}
+$('#exportBtn').addEventListener('click',e=>{e.stopPropagation();const m=$('#exportMenu');m.hidden=!m.hidden;$('#exportBtn').setAttribute('aria-expanded',String(!m.hidden))});
+document.addEventListener('click',e=>{
+  const ex=e.target.closest('[data-export]');if(ex){doExport(ex.dataset.export);return}
+  if(!e.target.closest('#exportMenu'))closeMenu();
+  if(e.target.closest('[data-act="imp-card"]')){$('#fileDrawio').click();return}
+  const fl=e.target.closest('[data-floor]');if(fl){switchFloor(fl.dataset.floor);return}
+  const pt=e.target.closest('[data-ptab]');if(pt){panelTab=pt.dataset.ptab;confirmKey=null;renderPanel();return}
+  const pi=e.target.closest('.pitem');if(pi){if(!floors.length){toast('Importe d\'abord ton plan draw.io');return}if(mode!=='plan')switchFloor(curFloor);placing=placing===pi.dataset.type?null:pi.dataset.type;linkFrom=null;if(!placing)$('#ghostL').innerHTML='';updatePalette();updateHint();status();return}
+});
+$('#undoBtn').addEventListener('click',undo);
+const sw_=$('#stageWrap');
+sw_.addEventListener('dragover',e=>{if([...(e.dataTransfer.types||[])].includes('Files')){e.preventDefault();sw_.classList.add('drop')}});
+sw_.addEventListener('dragleave',e=>{if(e.target===sw_||!sw_.contains(e.relatedTarget))sw_.classList.remove('drop')});
+sw_.addEventListener('drop',e=>{e.preventDefault();sw_.classList.remove('drop');const f=e.dataTransfer.files[0];if(!f)return;if(/\.json$/i.test(f.name))$('#fileJson').files=e.dataTransfer.files,$('#fileJson').dispatchEvent(new Event('change'));else importDrawioFile(f)});
+
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3200)}
+function renderAll(){renderTabs();renderStage();renderPanel();updatePalette();status();$('#undoBtn').disabled=!undoStack.length;if(needFit&&svg.getBoundingClientRect().width){needFit=false;fit()}}
+
+/* ---------- boot ---------- */
+loadFloors();renderPalette();renderMenu();cur=histSnap();renderAll();initStore();
+</script>
+</body>
+</html>
