@@ -304,6 +304,7 @@ const TYPES={
   compteur:{name:'Compteur',short:'Compteur',cat:'div',kind:'tableau',circuit:false,draw:c=>R(c,-15,-10,30,20)+T(c,0,0,'kWh',8)},
   boite:{name:'Boîte de dérivation',short:'Boîte de dérivation',cat:'div',kind:'divers',circuit:false,draw:c=>C(c,0,0,6)+C(c,0,0,2,c,1)},
   terre:{name:'Prise de terre',short:'Terre',cat:'div',kind:'divers',circuit:false,draw:c=>P(c,'M0 -14 L0 2 M-11 2 L11 2 M-7 7 L7 7 M-3 12 L3 12')},
+  attente:{name:'Gaine en attente (réservation)',short:'Gaine en attente',cat:'div',kind:'divers',circuit:false,tag:true,h:120,draw:(c,it)=>`<rect x="-15" y="-11" width="30" height="22" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="4 3"/>`+T(c,0,0,trunc((it&&it.tag)||'ATT',4),((it&&it.tag)||'ATT').length>2?8:10)+P(c,'M0 11 L0 17')},
   sonnette:{name:'Sonnette',short:'Sonnette',cat:'div',kind:'divers',circuit:true,draw:c=>P(c,'M-10 7 A10 10 0 0 1 10 7 Z M-13 11 L13 11')},
   fumee:{name:'Détecteur de fumée',short:'Détecteur fumée',cat:'div',kind:'divers',circuit:false,draw:c=>C(c,0,0,11)+T(c,0,0,'DF',8)},
   data:{name:'Prise réseau (RJ45)',short:'RJ45',cat:'faible',kind:'faible',circuit:false,h:30,draw:c=>sockBase(c)+T(c,0,-12,'TP',8)},
@@ -316,6 +317,8 @@ const NATURES=[['eclairage','Éclairage'],['prises','Prises'],['mixte','Mixte'],
 const CDEF={eclairage:{name:'Éclairage',cal:16,sec:1.5},prises:{name:'Prises',cal:20,sec:2.5},mixte:{name:'Prises et éclairage',cal:16,sec:2.5},dedie:{name:'Appareil',cal:20,sec:2.5},reserve:{name:'Réserve',cal:16,sec:1.5}};
 const CALS=[6,10,16,20,25,32,40,50,63];
 const SECS=[1.5,2.5,4,6,10,16];
+/* Classes de réaction au feu (CPR, NBN EN 13501-6) courantes pour les câbles d'installation */
+const FEU=['Eca','Dca-s2,d2,a2','Cca-s3,d1,a3','Cca-s1b,d1,a1','B2ca-s1a,d1,a1'];
 const natureOfKind=k=>k==='prise'?'prises':(k==='eclairage'||k==='commande')?'eclairage':k==='appareil'?'dedie':'mixte';
 
 const PAL_APP={wall:'var(--wall)',paper:'var(--paper)',ink:'var(--ink)',muted:'var(--muted)',font:"Barlow,system-ui,sans-serif",mono:"'IBM Plex Mono',ui-monospace,monospace"};
@@ -442,6 +445,7 @@ function refName(n){let s='';n++;while(n>0){const k=(n-1)%26;s=String.fromCharCo
 function nextRef(){const used=new Set(state.circuits.map(c=>c.ref));for(let i=0;;i++){const r=refName(i);if(!used.has(r))return r}}
 const refSort=(a,b)=>a.ref.length-b.ref.length||a.ref.localeCompare(b.ref,'fr',{numeric:true});
 const cableStr=c=>`${c.cable||'XVB'} ${c.cond||3}G${fmt(c.section)}`;
+const feuStr=c=>String(c.feu||'').trim();
 function nextOrd(cid){return Math.max(0,...state.items.filter(i=>i.circuit===cid).map(i=>i.ord||0))+1}
 function assign(it,cid){if(it.circuit===cid)return;it.circuit=cid||null;if(cid){it.ord=nextOrd(cid);const c=circById(cid);if(c)lastCirc[natureOfKind(TYPES[it.type].kind)]=cid}}
 function newCircuit(nature){const d=CDEF[nature]||CDEF.mixte;const used=new Set(state.circuits.map(c=>c.color));let color=0;while(used.has(color)&&color<CCOL.length)color++;
@@ -471,7 +475,12 @@ function checks(){
     if(pts.some(p=>isWet(roomOf(p))))reasons.push('pièce humide');
     if(reasons.length&&(!d||+d.sens>30))out.push(['warn',`Circuit ${c.ref} (${reasons.join(', ')}) n'est pas derrière un DDR 30 mA.`]);
     if(!pts.length&&c.nature!=='reserve')out.push(['info',`Circuit ${c.ref} « ${c.name} » ne contient encore aucun point.`]);
+    if(pts.length&&!feuStr(c))out.push(['warn',`Circuit ${c.ref} : classe de réaction au feu du câble non renseignée (à indiquer sur les schémas depuis le 1er juin 2023).`]);
   }
+  const rt=String(state.settings.terre??'').trim();
+  if(rt==='')out.push(['info','Résistance de dispersion de la terre non renseignée : la structure des différentiels en dépend (≤ 30 Ω ou non).']);
+  else if(+rt>100)out.push(['err',`Terre à ${rt} Ω : au-delà de 100 Ω, la prise de terre doit être améliorée.`]);
+  else if(+rt>30)out.push(['warn',`Terre à ${rt} Ω (> 30 Ω) : au moins deux DDR 30 mA avec 16 socles max chacun, autres circuits derrière des DDR de 100 mA max.`]);
   for(const d of state.diffs){const n=state.circuits.filter(c=>c.diff===d.id).length;if(+d.sens<=30&&n>8)out.push(['warn',`${d.name} : ${n} circuits. Maximum 8 circuits par DDR 30 mA additionnel.`])}
   const un=state.items.filter(i=>TYPES[i.type]&&TYPES[i.type].circuit&&!circById(i.circuit));
   if(un.length)out.push(['info',`${un.length} point${un.length>1?'s':''} sans circuit (absent${un.length>1?'s':''} de l'unifilaire).`]);
@@ -544,8 +553,10 @@ function buildUni(pal){
       o+=brk(x,TOP)+t(x+18,TOP+20,c.ref,17,{w:700,mono:1})+t(x+18,TOP+40,`${c.calibre} A`,11,{mono:1,w:600});
       o+=L(x,TOP+50,x,pts.length?PT0:TOP+130);
       wrap(c.name,17).slice(0,2).forEach((ln,i)=>o+=t(x+8,TOP+72+i*14,ln,11,{w:600}));
-      o+=t(x+8,TOP+106,c.nature==='reserve'&&!pts.length?'—':cableStr(c),10,{mono:1,color:pal.muted});
-      if(c.nature==='reserve'&&!pts.length)o+=t(x+8,TOP+124,'Réserve',11,{it:1,color:pal.muted});
+      const emptyRes=c.nature==='reserve'&&!pts.length;
+      o+=t(x+8,TOP+106,emptyRes?'—':cableStr(c),10,{mono:1,color:pal.muted});
+      if(!emptyRes&&feuStr(c))o+=t(x+8,TOP+120,trunc(feuStr(c),18),9.5,{mono:1,color:pal.muted});
+      if(emptyRes)o+=t(x+8,TOP+124,'Réserve',11,{it:1,color:pal.muted});
       if(pts.length)o+=L(x,PT0,x,PT0+(pts.length-1)*ROWH+ROWH/2);
       pts.forEach((p,i)=>{const cy=PT0+i*ROWH+ROWH/2,Ty=TYPES[p.type];
         o+=`<rect x="${x-15}" y="${cy-15}" width="30" height="30" style="fill:${pal.paper}"/>`+sym(p.type,x,cy,.68,p);
@@ -788,6 +799,7 @@ function renderItemPanel(){
   if(it.type==='piece')h+=field('Nom de la pièce',`<input id="f-label" type="text" value="${esc(it.label||'')}" autocomplete="off">`,'Sert à décrire les points proches dans l\'unifilaire et la liste.');
   else h+=field('Type de symbole',`<select id="f-type">${typeOpts}</select>`);
   if(T.circuit)h+=field('Circuit',`<select id="f-circ">${opt('','— Non affecté —',it.circuit||'')}${state.circuits.slice().sort(refSort).map(c=>opt(c.id,`${c.ref} · ${c.name}`,it.circuit||'')).join('')}<option value="__new">+ Nouveau circuit…</option></select>`);
+  if(T.tag)h+=field('Code affiché',`<input id="f-tag" type="text" maxlength="4" value="${esc(it.tag||'')}" placeholder="ATT" autocomplete="off">`,'Destination de la réservation, par ex. VE (borne de recharge), PAC, PV.');
   if(T.multi)h+=fieldDiv('Nombre de socles',`<div class="seg" id="f-n">${[1,2,3,4].map(n=>`<button type="button" data-n="${n}" aria-pressed="${(it.n||1)===n}">${n}</button>`).join('')}</div>`,'Une prise multiple compte pour 1 point dans la limite de 8 par circuit.');
   if(T.h!==undefined)h+=field('Hauteur de pose (cm)',`<input id="f-h" type="number" min="0" step="5" value="${it.h??''}">`);
   if(T.ip)h+=`<label class="chk"><input type="checkbox" id="f-ip"${it.ip?' checked':''}> Étanche (IP44 ou plus)</label>`;
@@ -801,7 +813,8 @@ function renderItemPanel(){
 }
 $('#panel-item').addEventListener('input',e=>{const it=itemById(sel);if(!it)return;const id=e.target.id;
   if(id==='f-label'){it.label=e.target.value;renderItems();const h2=$('#panel-item h2');if(h2)h2.textContent=it.label||'Pièce'}
-  else if(id==='f-room')it.room=e.target.value;else if(id==='f-note')it.note=e.target.value;});
+  else if(id==='f-room')it.room=e.target.value;else if(id==='f-note')it.note=e.target.value;
+  else if(id==='f-tag'){it.tag=e.target.value.trim().toUpperCase();renderItems()}});
 $('#panel-item').addEventListener('change',e=>{const it=itemById(sel);if(!it)return;const t=e.target,id=t.id;
   if(id==='f-type'){it.type=t.value;const T=TYPES[it.type];if(!T.circuit)it.circuit=null;if(T.h!==undefined&&it.h==null)it.h=T.h;commit();renderItems();renderItemPanel();return}
   if(id==='f-circ'){if(t.value==='__new'){const c=newCircuit(natureOfKind(TYPES[it.type].kind));assign(it,c.id);toast(`Circuit ${c.ref} créé — complète-le dans l'onglet Circuits`)}else assign(it,t.value||null);commit();renderItems();renderItemPanel();return}
@@ -834,9 +847,10 @@ function renderCircPanel(){
       <div class="row2">${field('Nature',`<select data-cf="nature">${NATURES.map(([v,l])=>opt(v,l,c.nature)).join('')}</select>`)}${field('Protégé par',`<select data-cf="diff">${opt('',`DDR général ${S.gen.sens} mA`,c.diff&&state.diffs.some(d=>d.id===c.diff)?c.diff:'')}${state.diffs.map(d=>opt(d.id,d.name,c.diff)).join('')}</select>`)}</div>
       <div class="row2">${field('Disjoncteur',`<select data-cf="calibre">${CALS.map(v=>opt(v,v+' A',c.calibre)).join('')}</select>`)}${field('Section',`<select data-cf="section">${SECS.map(v=>opt(v,fmt(v)+' mm²',c.section)).join('')}</select>`)}</div>
       <div class="row2">${field('Câble',`<input type="text" data-cf="cable" value="${esc(c.cable||'')}" placeholder="XVB">`)}${field('Conducteurs',`<select data-cf="cond">${[2,3,4,5].map(v=>opt(v,v+'G',c.cond)).join('')}</select>`)}</div>
-      <details${openCards.has(c.id)?' open':''} data-det="${c.id}"><summary>${pts.length} point${pts.length>1?'s':''} · ${esc(cableStr(c))}</summary>${pts.length?`<ul class="plist">${pts.map((p,i)=>`<li><span class="r">${refs[p.id]}</span><span class="d" title="${esc(TYPES[p.type].name)}">${esc(TYPES[p.type].short)}${p.n>1?' ×'+p.n:''} · ${esc(roomOf(p)||floorName(p.floor))}</span><span class="b"><button type="button" data-mv="-1" data-p="${p.id}" ${i===0?'disabled':''} title="Monter">↑</button><button type="button" data-mv="1" data-p="${p.id}" ${i===pts.length-1?'disabled':''} title="Descendre">↓</button><button type="button" data-go="${p.id}" title="Afficher sur le plan">Voir</button></span></li>`).join('')}</ul>`:'<p class="fine">Sélectionne un point sur le plan et choisis ce circuit.</p>'}</details>
+      ${field('Classe de réaction au feu (CPR)',`<input type="text" data-cf="feu" list="feu-list" value="${esc(c.feu||'')}" placeholder="ex. Cca-s3,d1,a3" autocomplete="off">`,'Figure sur l\'étiquette du câble et sa déclaration de performance (DoP).')}
+      <details${openCards.has(c.id)?' open':''} data-det="${c.id}"><summary>${pts.length} point${pts.length>1?'s':''} · ${esc(cableStr(c))}${feuStr(c)?' · '+esc(feuStr(c)):''}</summary>${pts.length?`<ul class="plist">${pts.map((p,i)=>`<li><span class="r">${refs[p.id]}</span><span class="d" title="${esc(TYPES[p.type].name)}">${esc(TYPES[p.type].short)}${p.n>1?' ×'+p.n:''} · ${esc(roomOf(p)||floorName(p.floor))}</span><span class="b"><button type="button" data-mv="-1" data-p="${p.id}" ${i===0?'disabled':''} title="Monter">↑</button><button type="button" data-mv="1" data-p="${p.id}" ${i===pts.length-1?'disabled':''} title="Descendre">↓</button><button type="button" data-go="${p.id}" title="Afficher sur le plan">Voir</button></span></li>`).join('')}</ul>`:'<p class="fine">Sélectionne un point sur le plan et choisis ce circuit.</p>'}</details>
       <div class="cfoot"><span>${esc(diffOf(c)?diffOf(c).name:'DDR général')}</span><button type="button" class="btn sm danger${confirmKey==='c'+c.id?' armed':''}" data-act="del-circ">${confirmKey==='c'+c.id?'Confirmer':'Supprimer'}</button></div></div>`}
-  h+=`</section>`;$('#panel-circ').innerHTML=h;
+  h+=`</section><datalist id="feu-list">${FEU.map(v=>`<option value="${esc(v)}"></option>`).join('')}</datalist>`;$('#panel-circ').innerHTML=h;
 }
 $('#panel-circ').addEventListener('toggle',e=>{const d=e.target.closest&&e.target.closest('details');if(!d)return;d.open?openCards.add(d.dataset.det):openCards.delete(d.dataset.det)},true);
 $('#panel-circ').addEventListener('change',e=>{const t=e.target;
