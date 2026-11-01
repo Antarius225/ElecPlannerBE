@@ -51,6 +51,10 @@ button,input,select{font:inherit;color:inherit}
 .brand small[data-s="busy"]::before{content:"● ";color:var(--warn)}
 .brand small[data-s="local"]::before{content:"● ";color:var(--muted)}
 .brand small[data-s="err"]::before{content:"● ";color:var(--err)}
+#gdState{cursor:pointer}#gdState:hover{color:var(--ink);text-decoration:underline}
+.gdwarn{border:1px solid var(--err);border-radius:8px;padding:10px 12px;margin:0 0 10px;font-size:13px;line-height:1.4}
+.gdwarn b{color:var(--err)}
+.gdset summary{cursor:pointer;font-size:13px;color:var(--muted);margin-top:10px}
 .tabs{display:flex;align-items:center;gap:2px;flex-wrap:wrap;flex:1;min-width:0}
 .tab{white-space:nowrap;border:0;background:none;padding:7px 11px;border-radius:5px;cursor:pointer;font-family:var(--f-head);font-weight:600;font-size:15px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
 .tab:hover{background:var(--panel);color:var(--ink)}
@@ -195,7 +199,7 @@ kbd{font-family:var(--f-mono);font-size:11.5px;border:1px solid var(--line);bord
   <header class="top">
     <div class="brand">
       <svg viewBox="-22 -22 44 44" aria-hidden="true"><circle cx="0" cy="0" r="12" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M-8.5 -8.5 L8.5 8.5 M8.5 -8.5 L-8.5 8.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-      <div><b>Plan électrique</b><small id="saveState" data-s="local">Chargement…</small></div>
+      <div><b>Plan électrique</b><small id="saveState" data-s="local">Chargement…</small><small id="gdState" role="button" tabindex="0" hidden></small></div>
     </div>
     <nav class="tabs" id="floorTabs" aria-label="Étages"></nav>
     <div class="actions">
@@ -633,7 +637,7 @@ function buildDrawioXml(){
 let dbRef=null,saveTimer=null,saving=false,saveAgain=false;
 function setSave(s,txt){const el=$('#saveState');el.dataset.s=s;el.textContent=txt||({ok:'Enregistré',busy:'Enregistrement…',local:'Enregistré dans ce navigateur',err:'Échec de l\'enregistrement'})[s]}
 function saveLocal(){try{localStorage.setItem('pe-state',JSON.stringify(state))}catch{}}
-function scheduleSave(){saveLocal();if(!dbRef){setSave('local');return}setSave('busy');clearTimeout(saveTimer);saveTimer=setTimeout(flushSave,900)}
+function scheduleSave(){saveLocal();gdSchedule();if(!dbRef){setSave('local');return}setSave('busy');clearTimeout(saveTimer);saveTimer=setTimeout(flushSave,900)}
 async function flushSave(){if(!dbRef)return;if(saving){saveAgain=true;return}saving=true;
   try{const json=JSON.stringify(state);if(json.length>250000){setSave('err','Projet trop volumineux pour la sauvegarde partagée');saving=false;return}
     await dbRef.set({json,updatedAt:state.updatedAt||Date.now()});setSave('ok')}catch(e){setSave('err')}
@@ -888,7 +892,7 @@ function exportButtons(){return [
   ['copyxml','Copier le XML draw.io','À coller dans un fichier .drawio'],
 ]}
 function renderProjPanel(){
-  const S=state.settings,G=gdCfg();if(G.clientId&&G.apiKey)gdPreload();
+  const S=state.settings,G=gdCfg(),gdOk=!!(G.clientId&&G.apiKey);if(gdOk)gdPreload();
   $('#panel-proj').innerHTML=`<section class="block"><h3>Cartouche</h3><div class="fields">
     ${field('Adresse de l\'installation',`<input type="text" data-p="adresse" value="${esc(S.adresse)}">`)}
     ${field('Propriétaire',`<input type="text" data-p="proprietaire" value="${esc(S.proprietaire)}">`)}
@@ -901,19 +905,28 @@ function renderProjPanel(){
   <section class="block"><h3>Exporter</h3><div class="expl">${exportButtons().map(([k,l,s])=>`<button type="button" class="btn" data-export="${k}">${l}<small>${s}</small></button>`).join('')}</div></section>
   <section class="block"><h3>Plan de base</h3><p class="fine" style="margin:0 0 8px">${floors.length?`${floors.length} page${floors.length>1?'s':''} importée${floors.length>1?'s':''}. Après une modification dans draw.io, réimporte le fichier : les symboles sont conservés (pages associées par nom).`:'Aucun plan importé pour le moment.'} Le plan reste dans ton navigateur et dans tes sauvegardes JSON.</p>
     <div class="acts" style="margin:0;padding:0;border:0"><button type="button" class="btn" data-act="imp-drawio">Importer un plan draw.io</button></div></section>
-  <section class="block"><h3>Google Drive</h3><p class="fine" style="margin:0 0 8px">Importe un plan draw.io ou une sauvegarde JSON depuis ton Drive : le type est reconnu automatiquement.</p>
-    <div class="fields">${field('ID client OAuth',`<input type="text" data-g="clientId" value="${esc(G.clientId||'')}" placeholder="123456789-xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false">`)}
-    ${field('Clé API',`<input type="text" data-g="apiKey" value="${esc(G.apiKey||'')}" placeholder="AIza…" autocomplete="off" spellcheck="false">`,'Enregistrés seulement dans ce navigateur, jamais dans les sauvegardes JSON.')}</div>
-    <div class="acts" style="padding-top:0;border:0"><button type="button" class="btn" data-act="gdrive"${G.clientId&&G.apiKey?'':' disabled'}>Importer depuis Google Drive</button></div></section>
+  <section class="block"><h3>Google Drive</h3>
+    ${gdConflict?`<div class="gdwarn"><b>Conflit.</b> Le fichier « ${esc(G.fileName||'')} » a été modifié ailleurs (autre appareil ?) depuis ta dernière sauvegarde. La sauvegarde automatique est suspendue.
+      <div class="acts" style="padding-top:0;border:0;margin-top:10px"><button type="button" class="btn" data-act="gd-pull">Charger la version Drive</button><button type="button" class="btn danger" data-act="gd-force">Écraser avec ma version</button></div></div>`:''}
+    ${G.fileId?`<p class="fine" style="margin:0 0 8px">Fichier lié : <b>${esc(G.fileName||'')}</b><br><span id="gdInfo">${esc(gdStatus.txt||'')}</span></p>
+      <label class="chk"><input type="checkbox" data-gauto${G.auto!==false?' checked':''}> Sauvegarde automatique sur Drive</label>`
+      :`<p class="fine" style="margin:0 0 8px">Importe un plan draw.io ou une sauvegarde JSON depuis ton Drive (type reconnu automatiquement). « Enregistrer sur Drive » crée le fichier dans un dossier « Plan électrique » puis l'enregistre automatiquement à chaque modification.</p>`}
+    <div class="acts" style="padding-top:0;border:0">${gdOk?'':'<span class="fine" style="margin:0 0 4px;width:100%">Renseigne d\'abord les paramètres Google ci-dessous.</span>'}<button type="button" class="btn" data-act="gdrive"${gdOk?'':' disabled'}>Importer depuis Drive</button><button type="button" class="btn" data-act="gd-save"${gdOk?'':' disabled'}>${G.fileId?'Enregistrer maintenant':'Enregistrer sur Drive'}</button>${G.fileId?'<button type="button" class="btn" data-act="gd-unlink">Délier</button>':''}</div>
+    <details class="gdset"${gdOk?'':' open'}><summary>Paramètres Google</summary><div class="fields" style="margin-top:8px">${field('ID client OAuth',`<input type="text" data-g="clientId" value="${esc(G.clientId||'')}" placeholder="123456789-xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false">`)}
+    ${field('Clé API',`<input type="text" data-g="apiKey" value="${esc(G.apiKey||'')}" placeholder="AIza…" autocomplete="off" spellcheck="false">`,'Enregistrés seulement dans ce navigateur, jamais dans les sauvegardes JSON.')}</div></details></section>
   <section class="block"><h3>Projet</h3><div class="acts" style="margin:0;padding:0;border:0"><button type="button" class="btn" data-act="imp-json">Charger une sauvegarde</button><button type="button" class="btn danger${confirmKey==='reset'?' armed':''}" data-act="reset">${confirmKey==='reset'?'Confirmer : tout effacer':'Tout réinitialiser'}</button></div></section>`;
 }
 $('#panel-proj').addEventListener('input',e=>{const t=e.target;if(t.dataset.p==='size'){state.settings.size=+t.value;t.closest('.fld').querySelector('span').textContent=`Taille des symboles · ${t.value} cm`;renderItems()}});
-$('#panel-proj').addEventListener('change',e=>{const t=e.target;if(t.dataset.g){const c=gdCfg();c[t.dataset.g]=t.value.trim();gdSave(c);renderProjPanel();return}const k=t.dataset.p;if(!k)return;const S=state.settings;
+$('#panel-proj').addEventListener('change',e=>{const t=e.target;if('gauto' in t.dataset){const c=gdCfg();c.auto=t.checked;gdSave(c);if(t.checked){gdSeq++;gdDirty=true;gdFlush(false)}else{clearTimeout(gdTimer);gdSetState('local','Drive : sauvegarde automatique désactivée')}return}if(t.dataset.g){const c=gdCfg();c[t.dataset.g]=t.value.trim();gdSave(c);renderProjPanel();return}const k=t.dataset.p;if(!k)return;const S=state.settings;
   if(t.type==='checkbox')S[k]=t.checked;else if(k==='size'||k==='snap')S[k]=+t.value;else S[k]=t.value;commit();renderStage()});
 $('#panel-proj').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.act;
   if(a==='imp-drawio')$('#fileDrawio').click();else if(a==='imp-json')$('#fileJson').click();
   else if(a==='gdrive')gdImport();
-  else if(a==='reset'){if(confirmKey!=='reset'){confirmKey='reset';renderProjPanel();return}confirmKey=null;const keep=state.drawio;state=defaultState();state.drawio=keep;state.updatedAt=Date.now();sel=null;commit();scheduleSave();renderAll();toast('Projet réinitialisé — Ctrl+Z pour revenir')}});
+  else if(a==='gd-save'){if(gdCfg().fileId){gdDirty=true;gdFlush(true)}else gdCreate()}
+  else if(a==='gd-unlink'){gdUnlink();toast('Fichier Drive délié : le projet reste dans ce navigateur')}
+  else if(a==='gd-pull')gdPull();
+  else if(a==='gd-force'){gdDirty=true;gdFlush(true,true)}
+  else if(a==='reset'){if(confirmKey!=='reset'){confirmKey='reset';renderProjPanel();return}confirmKey=null;gdUnlink();const keep=state.drawio;state=defaultState();state.drawio=keep;state.updatedAt=Date.now();sel=null;commit();scheduleSave();renderAll();toast('Projet réinitialisé — Ctrl+Z pour revenir')}});
 
 /* ---------- import ---------- */
 $('#fileDrawio').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)importDrawioFile(f)});
@@ -924,10 +937,11 @@ async function importDrawioFile(f){
     state.drawio=xml;mode='plan';loadFloors();state.updatedAt=Date.now();cur=histSnap();scheduleSave();needFit=true;renderAll();fit();
     toast(`Plan importé : ${nf.length} page${nf.length>1?'s':''}${lost?` · ${lost} symbole(s) déplacés sur « ${nf[0].name} »`:''}`)}
   catch(err){toast(err.message||'Import impossible')}}
-$('#fileJson').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)importJsonFile(f)});
+$('#fileJson').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  const linked=!!gdCfg().fileId;if(await importJsonFile(f)&&linked){gdUnlink();toast('Projet chargé · fichier Drive délié (le fichier local ne l\'écrase pas)')}});
 async function importJsonFile(f){
-  try{const s=JSON.parse(await f.text());if(!s||!Array.isArray(s.items))throw new Error();state=mergeState(s);state.updatedAt=Date.now();afterLoad();scheduleSave();toast('Projet chargé')}
-  catch{toast('Ce fichier n\'est pas une sauvegarde de ce plan.')}}
+  try{const s=JSON.parse(await f.text());if(!s||!Array.isArray(s.items))throw new Error();state=mergeState(s);state.updatedAt=Date.now();afterLoad();scheduleSave();toast('Projet chargé');return true}
+  catch{toast('Ce fichier n\'est pas une sauvegarde de ce plan.');return false}}
 
 /* ---------- Google Drive (Google Identity Services + Picker, portée drive.file) ---------- */
 const GD_SCOPE='https://www.googleapis.com/auth/drive.file';
@@ -966,8 +980,73 @@ async function gdPicked(d,tok){
     if(r.status===401){gdTok=null;throw new Error('Session Google expirée : relance l\'import.')}
     if(!r.ok)throw new Error(r.status===403?'Ce fichier ne peut pas être téléchargé (document Google natif ?).':`Téléchargement refusé par Google Drive (${r.status}).`);
     const txt=await r.text();const f=new File([txt],name);
-    if(/\.json$/i.test(name)||/^\s*\{/.test(txt))await importJsonFile(f);else await importDrawioFile(f)}
+    if(/\.json$/i.test(name)||/^\s*\{/.test(txt)){
+      const m=await (await gdReq(`${GD_API}/${encodeURIComponent(id)}?fields=version,name&supportsAllDrives=true`,{},tok)).json();
+      if(await importJsonFile(f)){clearTimeout(gdTimer);gdDirty=false;gdConflict=null;const c=gdCfg();Object.assign(c,{fileId:id,fileName:m.name||name,fileVersion:String(m.version),auto:c.auto!==false});gdSave(c);
+        gdSetState('ok','Drive : à jour');renderPanel();toast(`Projet chargé depuis Drive · « ${m.name||name} » enregistré automatiquement`)}}
+    else await importDrawioFile(f)}
   catch(e){toast(e.message||'Import impossible')}}
+
+/* ---------- Google Drive : sauvegarde automatique du projet ---------- */
+const GD_API='https://www.googleapis.com/drive/v3/files',GD_UP='https://www.googleapis.com/upload/drive/v3/files',GD_FOLDER='Plan électrique';
+let gdTimer=null,gdBusy=false,gdAgain=false,gdDirty=false,gdSeq=0,gdConflict=null,gdStatus={s:'',txt:''};
+const gdLinked=()=>{const c=gdCfg();return c.clientId&&c.apiKey&&c.fileId?c:null};
+const gdTokSilent=()=>gdTok&&Date.now()<gdTokExp-60000?gdTok:null;
+const hm=()=>new Date().toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'});
+function gdSetState(st,txt){gdStatus={s:st,txt};const el=$('#gdState');if(el){const on=!!gdCfg().fileId;el.hidden=!on;el.dataset.s=st;el.textContent=txt;
+    el.title=gdConflict?'Ouvrir l\'onglet Projet pour résoudre le conflit':st==='err'||st==='local'?'Cliquer pour se connecter à Google Drive':'Sauvegarde Google Drive'}
+  const i=$('#gdInfo');if(i)i.textContent=txt}
+async function gdReq(url,opt,tok){const o=opt||{};const r=await fetch(url,{...o,headers:{...(o.headers||{}),Authorization:'Bearer '+tok}});
+  if(r.status===401){gdTok=null;const e=new Error('Session Google expirée');e.auth=true;throw e}
+  if(r.status===404){const e=new Error('fichier introuvable (supprimé ?)');e.gone=true;throw e}
+  if(!r.ok)throw new Error(`Google Drive a répondu ${r.status}`);return r}
+function gdSchedule(){const c=gdLinked();if(!c||c.auto===false)return;gdSeq++;gdDirty=true;if(gdConflict)return;
+  gdSetState('busy','Drive : modifications en attente…');clearTimeout(gdTimer);gdTimer=setTimeout(()=>gdFlush(false),4000)}
+async function gdFlush(interactive,force=false){
+  const c=gdLinked();if(!c)return;if(gdBusy){gdAgain=true;return}
+  let tok=gdTokSilent();
+  if(!tok){if(!interactive){gdSetState('err',gdDirty?'Drive : clique pour te reconnecter':'Drive : clique pour te connecter');return}
+    try{tok=await gdToken(c)}catch(e){gdSetState('err','Drive : '+e.message);return}}
+  gdBusy=true;clearTimeout(gdTimer);const seq=gdSeq;
+  try{
+    if(!force){gdSetState('busy','Drive : vérification…');
+      const m=await (await gdReq(`${GD_API}/${encodeURIComponent(c.fileId)}?fields=version,trashed&supportsAllDrives=true`,{},tok)).json();
+      if(m.trashed)throw new Error('le fichier lié est dans la corbeille');
+      if(c.fileVersion&&String(m.version)!==String(c.fileVersion)){gdConflict={version:String(m.version)};gdSetState('err','Drive : conflit à résoudre');
+        if(panelTab==='proj')renderProjPanel();toast('Le fichier Drive a été modifié ailleurs : sauvegarde automatique suspendue (onglet Projet).');return}}
+    if(!gdDirty&&!force){gdSetState('ok','Drive : à jour');return}
+    gdSetState('busy','Drive : enregistrement…');
+    const m=await (await gdReq(`${GD_UP}/${encodeURIComponent(c.fileId)}?uploadType=media&fields=version&supportsAllDrives=true`,{method:'PATCH',headers:{'Content-Type':'application/json; charset=UTF-8'},body:JSON.stringify(state,null,1)},tok)).json();
+    const c2=gdCfg();c2.fileVersion=String(m.version);gdSave(c2);if(gdSeq===seq)gdDirty=false;
+    const wasConflict=!!gdConflict;gdConflict=null;gdSetState('ok','Drive : enregistré à '+hm());if(wasConflict&&panelTab==='proj')renderProjPanel()}
+  catch(e){gdSetState('err',e.auth?'Drive : clique pour te reconnecter':'Drive : '+e.message)}
+  finally{gdBusy=false;if(gdAgain){gdAgain=false;if(gdDirty)gdFlush(false)}}}
+async function gdFolderId(tok){
+  const q=encodeURIComponent(`name='${GD_FOLDER}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const l=await (await gdReq(`${GD_API}?q=${q}&fields=files(id)&spaces=drive`,{},tok)).json();if(l.files&&l.files.length)return l.files[0].id;
+  return (await (await gdReq(`${GD_API}?fields=id`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:GD_FOLDER,mimeType:'application/vnd.google-apps.folder'})},tok)).json()).id}
+async function gdCreate(){
+  const c=gdCfg();if(!c.clientId||!c.apiKey){toast('Renseigne d\'abord les paramètres Google (onglet Projet).');return}
+  try{const tok=await gdToken(c);toast('Création du fichier sur Google Drive…');const folder=await gdFolderId(tok);
+    const name=`plan_electrique${state.settings.adresse?'_'+slug(state.settings.adresse):''}.json`,b='pe'+Date.now().toString(36);
+    const body=`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({name,mimeType:'application/json',parents:[folder]})}\r\n--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(state,null,1)}\r\n--${b}--`;
+    const m=await (await gdReq(`${GD_UP}?uploadType=multipart&fields=id,name,version`,{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body},tok)).json();
+    const c2=gdCfg();Object.assign(c2,{fileId:m.id,fileName:m.name,fileVersion:String(m.version),auto:c2.auto!==false});gdSave(c2);gdDirty=false;gdConflict=null;
+    gdSetState('ok','Drive : enregistré à '+hm());renderPanel();toast(`Enregistré sur Drive : ${GD_FOLDER} / ${m.name}`)}
+  catch(e){toast('Enregistrement Drive impossible : '+e.message)}}
+async function gdPull(){const c=gdLinked();if(!c)return;
+  try{const tok=await gdToken(c);const id=encodeURIComponent(c.fileId);
+    const m=await (await gdReq(`${GD_API}/${id}?fields=version,name&supportsAllDrives=true`,{},tok)).json();
+    const txt=await (await gdReq(`${GD_API}/${id}?alt=media&supportsAllDrives=true`,{},tok)).text();
+    if(!await importJsonFile(new File([txt],m.name||'plan.json')))return;
+    clearTimeout(gdTimer);gdDirty=false;gdConflict=null;const c2=gdCfg();c2.fileVersion=String(m.version);c2.fileName=m.name||c2.fileName;gdSave(c2);
+    gdSetState('ok','Drive : à jour');renderPanel();toast('Version Drive chargée')}
+  catch(e){toast('Chargement Drive impossible : '+e.message)}}
+function gdUnlink(){clearTimeout(gdTimer);gdDirty=false;gdConflict=null;const c=gdCfg();if(!c.fileId)return;delete c.fileId;delete c.fileName;delete c.fileVersion;gdSave(c);gdSetState('','');if(panelTab==='proj')renderProjPanel()}
+$('#gdState').addEventListener('click',()=>{if(gdConflict){panelTab='proj';renderPanel();return}gdFlush(true)});
+$('#gdState').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#gdState').click()}});
+window.addEventListener('beforeunload',e=>{if(gdDirty&&gdLinked()&&gdTokSilent()){gdFlush(false);e.preventDefault();e.returnValue=''}});
+function gdInit(){const c=gdLinked();if(!c)return;gdPreload();gdSetState('local','Drive : clique pour te connecter')}
 
 /* ---------- export ---------- */
 let dlNs;const getDl=()=>dlNs||(dlNs=(window.claude&&window.claude.use)?window.claude.use('downloads').catch(()=>null):Promise.resolve(null));
@@ -1018,7 +1097,7 @@ let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;
 function renderAll(){renderTabs();renderStage();renderPanel();updatePalette();status();$('#undoBtn').disabled=!undoStack.length;if(needFit&&svg.getBoundingClientRect().width){needFit=false;fit()}}
 
 /* ---------- boot ---------- */
-loadFloors();renderPalette();renderMenu();cur=histSnap();renderAll();initStore();
+loadFloors();renderPalette();renderMenu();cur=histSnap();renderAll();initStore();gdInit();
 </script>
 </body>
 </html>

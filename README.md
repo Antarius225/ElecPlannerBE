@@ -3,7 +3,7 @@
 Éditeur web de **plan de position** et de **schéma unifilaire** pour une installation électrique domestique belge (RGIE, Livre 1).
 
 - Plan de base importé depuis draw.io (murs, fenêtres, portes, escaliers ; 1 unité = 1 cm)
-- Import depuis Google Drive (plan draw.io ou sauvegarde JSON, type reconnu automatiquement)
+- Google Drive : import (plan draw.io ou sauvegarde JSON, type reconnu automatiquement) et sauvegarde automatique du projet
 - Palette de symboles : prises, éclairage, commandes, appareils fixes, tableau, terre, courants faibles
 - Circuits (repère, disjoncteur, section, câble, classe de réaction au feu CPR) et différentiels 300 mA / 30 mA
 - Symbole « Gaine en attente » pour les réservations (borne de recharge VE, PAC, PV…) avec code affiché
@@ -15,9 +15,11 @@ Application statique en un seul fichier (`index.html`), sans dépendance. Les do
 
 > Les contrôles sont indicatifs. Le contrôle de conformité par un organisme agréé reste la référence.
 
-## Import depuis Google Drive
+## Google Drive
 
-L'import Drive utilise Google Identity Services et Google Picker avec la portée `drive.file` : l'app ne lit que les fichiers choisis dans le sélecteur. Il faut un projet Google Cloud à soi :
+**Sauvegarde automatique** : « Enregistrer sur Drive » (onglet Projet) crée le fichier JSON dans un dossier « Plan électrique », puis chaque modification y est enregistrée après quelques secondes. Ouvrir une sauvegarde JSON depuis Drive lie aussi ce fichier. Avant chaque écriture, l'app vérifie que le fichier n'a pas été modifié ailleurs (autre appareil) ; si c'est le cas, la sauvegarde est suspendue et l'onglet Projet propose de charger la version Drive ou de l'écraser. La session Google dure environ une heure : l'indicateur sous le titre propose alors de se reconnecter d'un clic. Charger une sauvegarde locale ou tout réinitialiser délie le fichier Drive.
+
+L'intégration Drive utilise Google Identity Services et Google Picker avec la portée `drive.file` : l'app ne lit que les fichiers choisis dans le sélecteur. Il faut un projet Google Cloud à soi :
 
 1. Activer **Google Drive API** et **Google Picker API**.
 2. Configurer l'écran de consentement OAuth (type *Externe*, en mode test, avec son propre compte comme utilisateur test).
