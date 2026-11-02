@@ -54,6 +54,7 @@ button,input,select{font:inherit;color:inherit}
 #gdState{cursor:pointer}#gdState:hover{color:var(--ink);text-decoration:underline}
 .gdwarn{border:1px solid var(--err);border-radius:8px;padding:10px 12px;margin:0 0 10px;font-size:13px;line-height:1.4}
 .gdwarn b{color:var(--err)}
+.gdok,.gdbusy{border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.4}.gdok{border-color:var(--ok)}.gdok b{color:var(--ok)}
 .gdset summary{cursor:pointer;font-size:13px;color:var(--muted);margin-top:10px}
 .tabs{display:flex;align-items:center;gap:2px;flex-wrap:wrap;flex:1;min-width:0}
 .tab{white-space:nowrap;border:0;background:none;padding:7px 11px;border-radius:5px;cursor:pointer;font-family:var(--f-head);font-weight:600;font-size:15px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
@@ -912,16 +913,19 @@ function renderProjPanel(){
       <label class="chk"><input type="checkbox" data-gauto${G.auto!==false?' checked':''}> Sauvegarde automatique sur Drive</label>`
       :`<p class="fine" style="margin:0 0 8px">Importe un plan draw.io ou une sauvegarde JSON depuis ton Drive (type reconnu automatiquement). « Enregistrer sur Drive » crée le fichier dans un dossier « Plan électrique » puis l'enregistre automatiquement à chaque modification.</p>`}
     <div class="acts" style="padding-top:0;border:0">${gdOk?'':'<span class="fine" style="margin:0 0 4px;width:100%">Renseigne d\'abord les paramètres Google ci-dessous.</span>'}<button type="button" class="btn" data-act="gdrive"${gdOk?'':' disabled'}>Importer depuis Drive</button><button type="button" class="btn" data-act="gd-save"${gdOk?'':' disabled'}>${G.fileId?'Enregistrer maintenant':'Enregistrer sur Drive'}</button>${G.fileId?'<button type="button" class="btn" data-act="gd-unlink">Délier</button>':''}</div>
-    <details class="gdset"${gdOk?'':' open'}><summary>Paramètres Google</summary><div class="fields" style="margin-top:8px">${field('ID client OAuth',`<input type="text" data-g="clientId" value="${esc(G.clientId||'')}" placeholder="123456789-xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false">`)}
-    ${field('Clé API',`<input type="text" data-g="apiKey" value="${esc(G.apiKey||'')}" placeholder="AIza…" autocomplete="off" spellcheck="false">`,'Enregistrés seulement dans ce navigateur, jamais dans les sauvegardes JSON.')}</div></details></section>
+    <details class="gdset"${gdOk&&!(gdDiag&&!gdDiag.ok)?'':' open'}><summary>Paramètres Google</summary><div class="fields" style="margin-top:8px">${field('ID client OAuth',`<input type="text" data-g="clientId" value="${esc(G.clientId||'')}" placeholder="123456789-xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false">`)}
+    ${field('Clé API',`<input type="text" data-g="apiKey" value="${esc(G.apiKey||'')}" placeholder="AIza…" autocomplete="off" spellcheck="false">`,'Enregistrés seulement dans ce navigateur, jamais dans les sauvegardes JSON.')}</div>
+    <div class="acts" style="padding-top:0;border:0;margin-top:8px"><button type="button" class="btn" data-act="gd-diag"${gdOk&&!(gdDiag&&gdDiag.busy)?'':' disabled'}>Tester la configuration</button></div></details>
+    ${gdDiag?`<div class="${gdDiag.ok?'gdok':gdDiag.busy?'gdbusy':'gdwarn'}" style="margin-top:10px">${gdDiag.ok?'<b>OK.</b> ':gdDiag.busy?'':'<b>Problème.</b> '}${esc(gdDiag.msg)}</div>`:''}</section>
   <section class="block"><h3>Projet</h3><div class="acts" style="margin:0;padding:0;border:0"><button type="button" class="btn" data-act="imp-json">Charger une sauvegarde</button><button type="button" class="btn danger${confirmKey==='reset'?' armed':''}" data-act="reset">${confirmKey==='reset'?'Confirmer : tout effacer':'Tout réinitialiser'}</button></div></section>`;
 }
 $('#panel-proj').addEventListener('input',e=>{const t=e.target;if(t.dataset.p==='size'){state.settings.size=+t.value;t.closest('.fld').querySelector('span').textContent=`Taille des symboles · ${t.value} cm`;renderItems()}});
-$('#panel-proj').addEventListener('change',e=>{const t=e.target;if('gauto' in t.dataset){const c=gdCfg();c.auto=t.checked;gdSave(c);if(t.checked){gdSeq++;gdDirty=true;gdFlush(false)}else{clearTimeout(gdTimer);gdSetState('local','Drive : sauvegarde automatique désactivée')}return}if(t.dataset.g){const c=gdCfg();c[t.dataset.g]=t.value.trim();gdSave(c);renderProjPanel();return}const k=t.dataset.p;if(!k)return;const S=state.settings;
+$('#panel-proj').addEventListener('change',e=>{const t=e.target;if('gauto' in t.dataset){const c=gdCfg();c.auto=t.checked;gdSave(c);if(t.checked){gdSeq++;gdDirty=true;gdFlush(false)}else{clearTimeout(gdTimer);gdSetState('local','Drive : sauvegarde automatique désactivée')}return}if(t.dataset.g){const c=gdCfg();c[t.dataset.g]=t.value.replace(/[\s"'`]/g,'');gdSave(c);gdKeyOk=null;gdDiag=null;renderProjPanel();return}const k=t.dataset.p;if(!k)return;const S=state.settings;
   if(t.type==='checkbox')S[k]=t.checked;else if(k==='size'||k==='snap')S[k]=+t.value;else S[k]=t.value;commit();renderStage()});
 $('#panel-proj').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.act;
   if(a==='imp-drawio')$('#fileDrawio').click();else if(a==='imp-json')$('#fileJson').click();
   else if(a==='gdrive')gdImport();
+  else if(a==='gd-diag')gdRunDiag();
   else if(a==='gd-save'){if(gdCfg().fileId){gdDirty=true;gdFlush(true)}else gdCreate()}
   else if(a==='gd-unlink'){gdUnlink();toast('Fichier Drive délié : le projet reste dans ce navigateur')}
   else if(a==='gd-pull')gdPull();
@@ -945,6 +949,31 @@ async function importJsonFile(f){
 
 /* ---------- Google Drive (Google Identity Services + Picker, portée drive.file) ---------- */
 const GD_SCOPE='https://www.googleapis.com/auth/drive.file';
+let gdKeyOk=null,gdDiag=null;
+function gdFormat(c){const id=c.clientId||'',k=c.apiKey||'';
+  if(/apps\.googleusercontent\.com$/.test(k)&&/^AIza/.test(id))return'Les deux champs sont inversés : l\'ID client se termine par .apps.googleusercontent.com, la clé API commence par AIza.';
+  if(/^GOCSPX-/.test(k))return'Le champ « Clé API » contient le code secret du client OAuth (GOCSPX-…). Il faut la clé API (AIza…), créée via Identifiants → Créer des identifiants → Clé API.';
+  if(/apps\.googleusercontent\.com$/.test(k))return'Le champ « Clé API » contient un ID client OAuth. Il faut la clé API (AIza…).';
+  if(k&&!/^AIza[0-9A-Za-z_-]{35}$/.test(k))return`La clé API n'a pas le bon format (elle doit commencer par AIza et faire 39 caractères ; ici ${k.length}). Elle a peut-être été mal copiée.`;
+  if(id&&!/^\d+-[0-9a-z]+\.apps\.googleusercontent\.com$/.test(id))return'L\'ID client OAuth n\'a pas le bon format (attendu : 123456789012-xxxx.apps.googleusercontent.com).';
+  return''}
+async function gdCheckKey(c,tok){
+  const r=await fetch(`https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)&key=${encodeURIComponent(c.apiKey)}`,{headers:{Authorization:'Bearer '+tok}});
+  if(r.ok){const j=await r.json().catch(()=>({}));return{ok:true,msg:`Clé API valide pour ce site et ce projet${j.user&&j.user.emailAddress?` · connecté en tant que ${j.user.emailAddress}`:''}. Si le sélecteur refuse encore la clé : vérifie que Google Picker API est activée dans ce projet et, si la clé est restreinte par API, qu'elle figure dans la liste.`}}
+  const j=await r.json().catch(()=>({}));const e=j.error||{};
+  const rs=[...(e.details||[]).map(d=>d.reason),...(e.errors||[]).map(x=>x.reason),e.status].filter(Boolean).join(' ');const m=e.message||'';
+  const site=location.origin+'/*';
+  if(/API_KEY_INVALID|keyInvalid/.test(rs)||/API key not valid/i.test(m))return{ok:false,msg:'Google ne reconnaît pas cette clé API : elle a été supprimée, régénérée ou mal copiée. Recopie-la depuis API et services → Identifiants (bouton « Afficher la clé »).'};
+  if(/HTTP_REFERRER_BLOCKED/.test(rs)||/referer|referrer/i.test(m))return{ok:false,msg:`La clé est restreinte à d'autres sites. Dans les restrictions d'application (« Sites Web »), ajoute exactement : ${site}`};
+  if(/IP_ADDRESS_BLOCKED|ANDROID_APP_BLOCKED|IOS_APP_BLOCKED/.test(rs))return{ok:false,msg:`La clé est restreinte à des adresses IP ou à des applis mobiles. Choisis « Sites Web » comme restriction d'application et ajoute : ${site}`};
+  if(/different projects|CONSUMER_INVALID/i.test(m+' '+rs))return{ok:false,msg:'La clé API et l\'ID client OAuth viennent de deux projets Google Cloud différents. Crée la clé dans le même projet que l\'ID client.'};
+  if(/SERVICE_BLOCKED/.test(rs))return{ok:false,soft:true,msg:'La clé est valide pour ce site, mais ses restrictions d\'API n\'incluent pas Google Drive API. Ajoute Google Drive API et Google Picker API dans « Restrictions relatives aux API » (ou retire la restriction pour tester).'};
+  if(/SERVICE_DISABLED|accessNotConfigured/.test(rs)||/has not been used|is disabled/i.test(m))return{ok:false,soft:true,msg:'Google Drive API n\'est pas activée dans le projet de cette clé. Active Google Drive API et Google Picker API dans API et services → Bibliothèque, puis attends quelques minutes.'};
+  return{ok:false,msg:`Google a refusé la clé (${r.status}${rs?' · '+rs:''}) : ${m||'raison inconnue'}`}}
+async function gdRunDiag(){const c=gdCfg();const f=gdFormat(c);if(f){gdDiag={ok:false,msg:f};renderProjPanel();return}
+  gdDiag={busy:true,msg:'Test en cours…'};renderProjPanel();
+  try{const tok=await gdToken(c);gdDiag=await gdCheckKey(c,tok);gdKeyOk=gdDiag.ok}catch(e){gdDiag={ok:false,msg:e.message||'Test impossible'}}
+  renderProjPanel()}
 function gdCfg(){try{return JSON.parse(localStorage.getItem('pe-gdrive')||'{}')||{}}catch{return{}}}
 function gdSave(c){try{localStorage.setItem('pe-gdrive',JSON.stringify(c))}catch{toast('Impossible d\'enregistrer la configuration dans ce navigateur')}}
 const scriptP={};
@@ -964,7 +993,9 @@ async function gdToken(cfg){
 async function gdImport(){
   const cfg=gdCfg();
   if(!cfg.clientId||!cfg.apiKey){toast('Renseigne d\'abord l\'ID client et la clé API Google (onglet Projet).');panelTab='proj';renderPanel();return}
+  const fe=gdFormat(cfg);if(fe){gdDiag={ok:false,msg:fe};panelTab='proj';renderPanel();toast('Paramètres Google incorrects : voir l\'onglet Projet');return}
   try{const[tok]=await Promise.all([gdToken(cfg),gdPickerReady()]);
+    if(gdKeyOk===null){const d=await gdCheckKey(cfg,tok);gdKeyOk=d.ok;if(d.soft)gdDiag=d;if(!d.ok&&!d.soft){gdDiag=d;panelTab='proj';renderPanel();toast('Clé API refusée par Google : voir l\'onglet Projet');return}}
     const appId=(cfg.clientId.match(/^(\d+)-/)||[])[1];
     const view=new google.picker.DocsView(google.picker.ViewId.DOCS).setIncludeFolders(true).setMode(google.picker.DocsViewMode.LIST);
     const pb=new google.picker.PickerBuilder().addView(view).setOAuthToken(tok).setDeveloperKey(cfg.apiKey).setLocale('fr')
