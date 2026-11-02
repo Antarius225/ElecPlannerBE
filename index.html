@@ -959,13 +959,13 @@ function gdFormat(c){const id=c.clientId||'',k=c.apiKey||'';
   return''}
 async function gdCheckKey(c,tok){
   const r=await fetch(`https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)&key=${encodeURIComponent(c.apiKey)}`,{headers:{Authorization:'Bearer '+tok}});
-  if(r.ok){const j=await r.json().catch(()=>({}));return{ok:true,msg:`Clé API valide pour ce site et ce projet${j.user&&j.user.emailAddress?` · connecté en tant que ${j.user.emailAddress}`:''}. Si le sélecteur refuse encore la clé : vérifie que Google Picker API est activée dans ce projet et, si la clé est restreinte par API, qu'elle figure dans la liste.`}}
+  if(r.ok){const j=await r.json().catch(()=>({}));return{ok:true,msg:`Clé API valide pour ce site et ce projet${j.user&&j.user.emailAddress?` · connecté en tant que ${j.user.emailAddress}`:''}. Si le sélecteur affiche « clé de développement non valide » : la clé est restreinte par site et https://docs.google.com/* manque dans la liste (le sélecteur Google s'affiche depuis ce domaine).`}}
   const j=await r.json().catch(()=>({}));const e=j.error||{};
   const rs=[...(e.details||[]).map(d=>d.reason),...(e.errors||[]).map(x=>x.reason),e.status].filter(Boolean).join(' ');const m=e.message||'';
   const site=location.origin+'/*';
   if(/API_KEY_INVALID|keyInvalid/.test(rs)||/API key not valid/i.test(m))return{ok:false,msg:'Google ne reconnaît pas cette clé API : elle a été supprimée, régénérée ou mal copiée. Recopie-la depuis API et services → Identifiants (bouton « Afficher la clé »).'};
-  if(/HTTP_REFERRER_BLOCKED/.test(rs)||/referer|referrer/i.test(m))return{ok:false,msg:`La clé est restreinte à d'autres sites. Dans les restrictions d'application (« Sites Web »), ajoute exactement : ${site}`};
-  if(/IP_ADDRESS_BLOCKED|ANDROID_APP_BLOCKED|IOS_APP_BLOCKED/.test(rs))return{ok:false,msg:`La clé est restreinte à des adresses IP ou à des applis mobiles. Choisis « Sites Web » comme restriction d'application et ajoute : ${site}`};
+  if(/HTTP_REFERRER_BLOCKED/.test(rs)||/referer|referrer/i.test(m))return{ok:false,msg:`La clé est restreinte à d'autres sites. Dans les restrictions d'application (« Sites Web »), ajoute exactement ces deux entrées : ${site} et https://docs.google.com/*`};
+  if(/IP_ADDRESS_BLOCKED|ANDROID_APP_BLOCKED|IOS_APP_BLOCKED/.test(rs))return{ok:false,msg:`La clé est restreinte à des adresses IP ou à des applis mobiles. Choisis « Sites Web » comme restriction d'application et ajoute : ${site} et https://docs.google.com/*`};
   if(/different projects|CONSUMER_INVALID/i.test(m+' '+rs))return{ok:false,msg:'La clé API et l\'ID client OAuth viennent de deux projets Google Cloud différents. Crée la clé dans le même projet que l\'ID client.'};
   if(/SERVICE_BLOCKED/.test(rs))return{ok:false,soft:true,msg:'La clé est valide pour ce site, mais ses restrictions d\'API n\'incluent pas Google Drive API. Ajoute Google Drive API et Google Picker API dans « Restrictions relatives aux API » (ou retire la restriction pour tester).'};
   if(/SERVICE_DISABLED|accessNotConfigured/.test(rs)||/has not been used|is disabled/i.test(m))return{ok:false,soft:true,msg:'Google Drive API n\'est pas activée dans le projet de cette clé. Active Google Drive API et Google Picker API dans API et services → Bibliothèque, puis attends quelques minutes.'};

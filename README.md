@@ -24,5 +24,5 @@ L'intégration Drive utilise Google Identity Services et Google Picker avec la p
 1. Activer **Google Drive API** et **Google Picker API**.
 2. Configurer l'écran de consentement OAuth (type *Externe*, en mode test, avec son propre compte comme utilisateur test).
 3. Créer un **ID client OAuth** de type *Application Web*, origine JavaScript autorisée : l'URL du site (ex. `https://antarius225.github.io`).
-4. Créer une **clé API**, restreinte aux référents HTTP du site et aux deux API ci-dessus.
+4. Créer une **clé API**, restreinte aux deux API ci-dessus. En restriction d'application « Sites Web », ajouter **deux** entrées : l'URL du site (ex. `https://antarius225.github.io/*`) **et `https://docs.google.com/*`** — le sélecteur Google s'affiche depuis ce domaine ; sans elle, il répond « La clé de développement d'API n'est pas valide ». Le bouton « Tester la configuration » de l'app vérifie le reste.
 5. Coller l'ID client et la clé API dans l'onglet **Projet → Google Drive** de l'app. Ils restent dans le navigateur (localStorage) et ne sont jamais inclus dans les sauvegardes JSON.
