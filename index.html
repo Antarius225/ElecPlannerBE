@@ -179,6 +179,31 @@ kbd{font-family:var(--f-mono);font-size:11.5px;border:1px solid var(--line);bord
 .modal textarea{width:100%;height:240px;font-family:var(--f-mono);font-size:11px;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:8px}
 .modal h3{margin:0;font-family:var(--f-head)}
 
+/* impression A4 paysage */
+.modal>div.a4dlg{width:min(1060px,100%);max-height:calc(100vh - 32px);grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden}
+.a4head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.a4body{display:grid;grid-template-columns:260px minmax(0,1fr);gap:14px;min-height:0}
+.a4opts{display:grid;gap:10px;align-content:start;overflow:auto;padding-right:2px}
+.a4prev{overflow:auto;display:grid;gap:12px;align-content:start;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:12px}
+.a4prev figure{margin:0;display:grid;gap:5px}
+.a4prev svg{display:block;width:100%;height:auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25);border-radius:2px}
+.a4prev figcaption{font-size:12.5px;color:var(--muted)}
+.a4prev figcaption b{color:var(--ink);font-family:var(--f-mono);font-weight:600}
+.a4prev .warn{color:var(--warn);font-weight:600}
+.a4dlg .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.a4dlg .acts .fine{margin:0 auto 0 0;font-size:12px;color:var(--muted);max-width:520px}
+@media (max-width: 760px){.a4body{grid-template-columns:minmax(0,1fr)}.a4prev{max-height:50vh}.modal>div.a4dlg{overflow:auto}}
+#printRoot{display:none}
+@media print{
+  @page{size:A4 landscape;margin:0}
+  html,body{height:auto!important;background:#fff!important;margin:0!important;padding:0!important;overflow:visible!important}
+  body>*:not(#printRoot){display:none!important}
+  #printRoot{display:block!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .ppage{width:297mm;height:210mm;overflow:hidden;break-after:page;page-break-after:always}
+  .ppage:last-child{break-after:auto;page-break-after:auto}
+  .ppage svg{display:block;width:297mm;height:210mm}
+}
+
 @media (max-width: 1100px){ .work{grid-template-columns:168px minmax(0,1fr) 300px} }
 @media (max-width: 900px){
   html,body{height:auto}
@@ -435,7 +460,7 @@ function planBox(f,b=null){
       for(const[dx,dy]of[[-v.w/2,-v.h/2],[v.w/2,-v.h/2],[v.w/2,v.h/2],[-v.w/2,v.h/2]])b=boxAdd(b,v.cx+dx*co-dy*si,v.cy+dx*si+dy*co)}
     else for(const p of[c.pts.source,c.pts.target,...c.pts.list])if(p)b=boxAdd(b,p.x,p.y)}
   return b}
-function itemsBox(items,b=null){const s=state.settings.size;for(const i of items){b=boxAdd(b,i.x-s,i.y-s);b=boxAdd(b,i.x+s*1.6,i.y+s)}return b}
+function itemsBox(items,b=null,s=+state.settings.size||30){for(const i of items){b=boxAdd(b,i.x-s,i.y-s);b=boxAdd(b,i.x+s*1.6,i.y+s)}return b}
 const toRect=b=>b?{x:b.x0,y:b.y0,w:Math.max(1,b.x1-b.x0),h:Math.max(1,b.y1-b.y0)}:null;
 
 /* ---------- circuits helpers ---------- */
@@ -495,7 +520,7 @@ function checks(){
 
 /* ---------- item markup ---------- */
 function itemMarkup(it,refs,o){
-  const T=TYPES[it.type];if(!T)return'';const S=state.settings;const size=+S.size||30,k=size/40,hs=size/2;
+  const T=TYPES[it.type];if(!T)return'';const S=state.settings;const size=+(o.size||S.size)||30,k=size/40,hs=size/2;
   const isSel=o.sel===it.id,lf=o.linkFrom===it.id;
   if(it.type==='piece'){const fs=size*0.62;const label=it.label||'Pièce';const wE=Math.max(30,label.length*fs*0.56);
     return `<g class="it piece${isSel?' sel':''}" data-id="${it.id}" transform="translate(${it.x} ${it.y})">${o.ex?'':`<rect x="${-wE/2-5}" y="${-fs*0.75}" width="${wE+10}" height="${fs*1.5}" fill="transparent"${isSel?' class="selbox"':''}/>`}<text text-anchor="middle" dominant-baseline="central" style="fill:${o.pal.muted};font-size:${fs}px;font-family:${o.pal.font};font-style:italic;font-weight:600">${esc(label)}</text></g>`}
@@ -600,6 +625,131 @@ function buildPlanExport(fid,pal=PAL_EX){
   return{markup:o,vb:`${x0} ${y0} ${W} ${H}`,pxW:Math.round(W/u*1.5),pxH:Math.round(H/u*1.5)};
 }
 const svgDoc=(inner,vb,w,h,extra='')=>`<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="${w}" height="${h}"${extra}>${inner}</svg>`;
+
+/* ---------- impression A4 paysage ----------
+   Tout est en millimètres papier (viewBox 0 0 297 210). Le plan est en cm (1 unité draw.io = 1 cm) :
+   à l'échelle 1:N, 1 cm réel = 10/N mm sur la feuille. */
+const PG={W:297,H:210,M:8,HEAD:12,PAD:4,NOTE:9};
+const STD_SCALES=[10,20,25,50,75,100,125,150,200,250,300,400,500,750,1000,1250,1500,2000,2500,5000];
+const FIX_SCALES=[20,25,50,75,100,125,150,200];
+const CART_U=0.2,CART_W=360*CART_U,CART_H=134*CART_U,LEG_ROW=5;
+function prOpts(){let o={};try{o=JSON.parse(localStorage.getItem('pe-print')||'{}')||{}}catch{}
+  return{pages:'cur',uni:false,scale:'auto',common:true,sym:'plan',layout:'auto',...o}}
+function prSaveOpts(o){try{localStorage.setItem('pe-print',JSON.stringify(o))}catch{}}
+const prT=(x,y,s,size,o={})=>`<text x="${x}" y="${y}" text-anchor="${o.a||'start'}" style="fill:${o.color||PAL_EX.ink};font-size:${size}px;font-family:${o.mono?PAL_EX.mono:PAL_EX.font};font-weight:${o.w||500}">${esc(s)}</text>`;
+const prSvg=inner=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PG.W} ${PG.H}" width="${PG.W}mm" height="${PG.H}mm">${inner}</svg>`;
+function prLegend(fid){
+  const its=state.items.filter(i=>i.floor===fid&&TYPES[i.type]&&i.type!=='piece');
+  const e=[{k:'head',t:'Légende'},...[...new Set(its.map(i=>i.type))].map(t=>({k:'sym',t}))];
+  if(state.settings.colors){const cs=state.circuits.filter(c=>its.some(i=>i.circuit===c.id)).sort(refSort);
+    if(cs.length){e.push({k:'head',t:'Circuits'});cs.forEach(c=>e.push({k:'circ',c}))}}
+  return e}
+/* Deux mises en page candidates : légende + cartouche en colonne à droite, ou en bandeau bas. */
+function prLayouts(nLeg){
+  const fx=PG.M,fy=PG.M,fw=PG.W-2*PG.M,fh=PG.H-2*PG.M,top=fy+PG.HEAD,pad=PG.PAD,bot=fy+fh;
+  const colX=fx+fw-CART_W-4;
+  const side={name:'side',area:{x:fx+pad,y:top+pad,w:colX-fx-2*pad,h:bot-top-2*pad},
+    sep:`M${colX} ${top} L${colX} ${bot}`,
+    leg:{x:colX+2.5,y:top+3,w:CART_W-1,h:bot-top-3-CART_H-PG.NOTE-5},
+    note:{x:colX+2.5,y:bot-CART_H-2-PG.NOTE},cart:{x:colX+2,y:bot-CART_H-2}};
+  const LW=colX-fx-6,cols=Math.max(1,Math.floor(LW/56)),rows=Math.ceil(nLeg/cols);
+  const BH=Math.min(84,Math.max(CART_H+4,rows*LEG_ROW+PG.NOTE+7)),by=bot-BH;
+  const bottom={name:'bottom',area:{x:fx+pad,y:top+pad,w:fw-2*pad,h:by-top-2*pad},
+    sep:`M${fx} ${by} L${fx+fw} ${by} M${colX} ${by} L${colX} ${bot}`,
+    leg:{x:fx+3,y:by+3,w:LW,h:BH-PG.NOTE-6},note:{x:fx+3,y:bot-PG.NOTE-1},cart:{x:colX+2,y:bot-CART_H-2}};
+  return{side,bottom}}
+function prLegendMarkup(e,b){
+  const rowsAvail=Math.max(1,Math.floor(b.h/LEG_ROW)),cols=Math.max(1,Math.ceil(e.length/rowsAvail)),rows=Math.ceil(e.length/cols);
+  const cw=b.w/cols,short=cw<60,maxCh=Math.max(6,Math.floor((cw-7)/1.2));let m='';
+  e.forEach((it,i)=>{const x=b.x+Math.floor(i/rows)*cw,y=b.y+(i%rows)*LEG_ROW;
+    if(it.k==='head')m+=prT(x,y+3.6,it.t,2.9,{w:700});
+    else if(it.k==='sym'){const T=TYPES[it.t];m+=`<g transform="translate(${x+2.4} ${y+2.4}) scale(0.105)" style="color:${PAL_EX.ink}">${T.draw('currentColor',{n:1})}</g>`+prT(x+6.2,y+3.3,trunc(short?T.short:T.name,maxCh),2.3)}
+    else{const c=it.c;m+=`<line x1="${x+.3}" y1="${y+2.5}" x2="${x+4.6}" y2="${y+2.5}" style="stroke:${colorOf(c)};stroke-width:1.2;stroke-linecap:round"/>`+prT(x+6.2,y+3.3,trunc(c.ref+' — '+c.name,maxCh),2.3)}});
+  return m}
+function prPickN(Nmin,mode){if(mode==='fit')return Math.max(1,Math.ceil(Nmin-1e-6));if(mode==='auto')return STD_SCALES.find(n=>n>=Nmin*0.9999)||Math.ceil(Nmin);return +mode}
+/* Choisit, pour un étage, la mise en page et l'échelle qui donnent le plan le plus grand sur la feuille. */
+function prPlanSpec(fid,o,forcedN){
+  const f=floorsById[fid];const its=state.items.filter(i=>i.floor===fid);const leg=prLegend(fid);const Ls=prLayouts(leg.length);
+  const base=+state.settings.size||30;const symFor=N=>o.sym==='plan'?base:(+o.sym)*N/10;
+  const bbFor=s=>toRect(itemsBox(its,planBox(f),s))||{x:0,y:0,w:1000,h:800};
+  const need=(bb,L)=>Math.max(bb.w*10/L.area.w,bb.h*10/L.area.h);
+  let best=null;
+  for(const L of(o.layout==='auto'?[Ls.side,Ls.bottom]:[Ls[o.layout]||Ls.side])){
+    let s=base,bb=bbFor(s),Nmin=need(bb,L),N=forcedN||prPickN(Nmin,o.scale);
+    for(let k=0;k<3&&o.sym!=='plan';k++){s=symFor(N);bb=bbFor(s);Nmin=need(bb,L);N=forcedN||prPickN(Nmin,o.scale)}
+    s=symFor(N);
+    const r={fid,f,its,leg,L,N,Nmin,bb,symU:s,symMM:s*10/N,fits:N>=Nmin*0.999};
+    if(!best||r.N<best.N||(r.N===best.N&&r.Nmin<best.Nmin))best=r}
+  return best}
+function prScaleBar(x1,y,N){const opts=[0.25,0.5,1,2,2.5,5,10,20,25,50,100];let m=opts[0];for(const v of opts)if(v*1000/N<=36)m=v;
+  const L=m*1000/N,seg=L/4;let o='';
+  for(let i=0;i<4;i++)o+=`<rect x="${x1-L+i*seg}" y="${y}" width="${seg}" height="1.5" style="fill:${i%2?'#fff':PAL_EX.ink};stroke:${PAL_EX.ink};stroke-width:.2"/>`;
+  return o+prT(x1-L,y+4.6,'0',2.2,{a:'middle',mono:1})+prT(x1,y+4.6,fmt(m)+' m',2.2,{a:'middle',mono:1})}
+function prPlanPage(p,idx,total,cid){
+  const fx=PG.M,fy=PG.M,fw=PG.W-2*PG.M,fh=PG.H-2*PG.M,top=fy+PG.HEAD,L=p.L,a=L.area,bb=p.bb,k=10/p.N;
+  const refs=computeRefs();const byId=Object.fromEntries(state.items.map(i=>[i.id,i]));const ox={ex:true,pal:PAL_EX,sel:null,size:p.symU};
+  const tx=p.fits?a.x+(a.w-bb.w*k)/2:a.x,ty=p.fits?a.y+(a.h-bb.h*k)/2:a.y;
+  const st=`fill:none;stroke:${PAL_EX.ink};stroke-width:.3`;
+  let o=`<rect x="0" y="0" width="${PG.W}" height="${PG.H}" style="fill:#fff"/><rect x="${fx}" y="${fy}" width="${fw}" height="${fh}" style="fill:none;stroke:${PAL_EX.ink};stroke-width:.45"/>`;
+  o+=`<path d="M${fx} ${top} L${fx+fw} ${top} ${L.sep}" style="${st}"/>`;
+  o+=prT(fx+3.5,fy+8.2,'Plan de position — '+p.f.name,5,{w:700});
+  o+=prT(fx+fw-3.5,fy+7.6,'Échelle 1:'+p.N,3.6,{a:'end',w:700,mono:1})+prScaleBar(fx+fw-41,fy+3.6,p.N);
+  const inner=planMarkup(p.f,PAL_EX)+state.links.map(l=>linkMarkup(l,byId,p.fid,PAL_EX)).join('')+
+    p.its.filter(i=>i.type==='piece').map(i=>itemMarkup(i,refs,ox)).join('')+p.its.filter(i=>i.type!=='piece').map(i=>itemMarkup(i,refs,ox)).join('');
+  if(!p.fits)o+=`<clipPath id="${cid}"><rect x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}"/></clipPath>`;
+  o+=`<g${p.fits?'':` clip-path="url(#${cid})"`}><g transform="translate(${tx} ${ty}) scale(${k}) translate(${-bb.x} ${-bb.y})">${inner}</g></g>`;
+  o+=prLegendMarkup(p.leg,L.leg);
+  o+=prT(L.note.x,L.note.y+3,'Repères : lettre du circuit + n° du point (cf. unifilaire)',2.1,{color:PAL_EX.muted})+
+     prT(L.note.x,L.note.y+6.4,'Imprimer en A4 paysage à 100 % (taille réelle)',2.1,{color:PAL_EX.muted});
+  o+=cartouche(PAL_EX,L.cart.x,L.cart.y,CART_U,'Plan de position',`${p.f.name} · ${idx+1}/${total}`);
+  return prSvg(o)}
+function prUniPage(){const u=buildUni(PAL_EX);const aw=PG.W-2*PG.M,ah=PG.H-2*PG.M,k=Math.min(aw/u.W,ah/u.H);
+  return prSvg(`<rect x="0" y="0" width="${PG.W}" height="${PG.H}" style="fill:#fff"/><g transform="translate(${PG.M+(aw-u.W*k)/2} ${PG.M+(ah-u.H*k)/2}) scale(${k})">${u.markup}</g>`)}
+function prPages(o,idp){
+  const fids=o.pages==='all'?floors.map(f=>f.id):[curFloor||floors[0].id];
+  let specs=fids.map(id=>prPlanSpec(id,o));
+  if(fids.length>1&&o.common&&(o.scale==='auto'||o.scale==='fit')){const Nc=Math.max(...specs.map(s=>s.N));specs=fids.map(id=>prPlanSpec(id,o,Nc))}
+  const total=specs.length+(o.uni?1:0);
+  const pages=specs.map((s,i)=>({name:s.f.name,spec:s,svg:prPlanPage(s,i,total,`${idp}c${i}`)}));
+  if(o.uni)pages.push({name:'Schéma unifilaire',svg:prUniPage()});
+  return pages}
+function prCaption(p){if(!p.spec)return `<b>${esc(p.name)}</b> · ajusté à la feuille`;const s=p.spec;
+  return `<b>${esc(p.name)} · 1:${s.N}</b> · légende ${s.L.name==='side'?'à droite':'en bas'} · symboles ${fmt(Math.round(s.symMM*10)/10)} mm`+
+    (s.fits?'':` · <span class="warn">le plan dépasse la feuille à cette échelle (minimum 1:${STD_SCALES.find(n=>n>=s.Nmin*0.9999)||Math.ceil(s.Nmin)})</span>`)+
+    (s.symMM<3?` · <span class="warn">symboles très petits</span>`:'')}
+function prPrint(pages){let root=$('#printRoot');if(!root){root=document.createElement('div');root.id='printRoot';document.body.appendChild(root)}
+  root.innerHTML=pages.map(p=>`<div class="ppage">${p.svg}</div>`).join('');
+  const clean=()=>{root.innerHTML='';window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);
+  try{window.print()}catch{clean();toast('Impression indisponible ici : télécharge le SVG A4')}}
+function openA4Dialog(){
+  const o=prOpts();if(floors.length<2)o.pages='cur';
+  const m=document.createElement('div');m.className='modal';
+  const opt=(v,l,cur)=>`<option value="${v}"${String(cur)===String(v)?' selected':''}>${esc(l)}</option>`;
+  m.innerHTML=`<div class="a4dlg" role="dialog" aria-modal="true" aria-label="Plan A4 paysage">
+    <div class="a4head"><h3>Plan A4 paysage — impression</h3><button type="button" class="btn sm" data-a="close">Fermer</button></div>
+    <div class="a4body"><div class="a4opts">
+      ${field('Pages',`<select data-o="pages">${opt('cur','Étage affiché ('+floorName(curFloor)+')',o.pages)}${floors.length>1?opt('all','Tous les étages ('+floors.length+')',o.pages):''}</select>`)}
+      <label class="chk"><input type="checkbox" data-o="uni"${o.uni?' checked':''}> Ajouter le schéma unifilaire</label>
+      ${field('Échelle',`<select data-o="scale">${opt('auto','Automatique (échelle normalisée)',o.scale)}${opt('fit','Remplir la feuille (échelle exacte)',o.scale)}${FIX_SCALES.map(n=>opt(n,'1:'+n,o.scale)).join('')}</select>`,'Automatique : la plus grande échelle usuelle (1:50, 1:75, 1:100…) pour laquelle l\'étage tient sur la feuille.')}
+      <label class="chk"><input type="checkbox" data-o="common"${o.common?' checked':''}> Même échelle pour tous les étages</label>
+      ${field('Mise en page',`<select data-o="layout">${opt('auto','Automatique (plan le plus grand)',o.layout)}${opt('side','Légende à droite',o.layout)}${opt('bottom','Légende en bas',o.layout)}</select>`)}
+      ${field('Taille des symboles',`<select data-o="sym">${opt('plan','Comme à l\'écran ('+(+state.settings.size||30)+' cm)',o.sym)}${[4,5,6,8].map(n=>opt(n,n+' mm sur la feuille',o.sym)).join('')}</select>`,'« Comme à l\'écran » garde les mêmes proportions que dans l\'éditeur.')}
+    </div><div class="a4prev" aria-live="polite"></div></div>
+    <div class="acts"><p class="fine">Dans la fenêtre d'impression : A4, paysage, échelle 100 % (taille réelle). Choisis « Enregistrer au format PDF » comme imprimante pour obtenir un PDF.</p>
+      <button type="button" class="btn" data-a="svg">Télécharger SVG A4</button><button type="button" class="btn primary" data-a="print">Imprimer / PDF</button></div></div>`;
+  document.body.appendChild(m);
+  const prev=m.querySelector('.a4prev');let pages=[];
+  const sync=()=>{const many=o.pages==='all'&&floors.length>1;const cb=m.querySelector('[data-o="common"]');cb.disabled=!many||!(o.scale==='auto'||o.scale==='fit');cb.closest('.chk').style.opacity=cb.disabled?.5:1};
+  const render=()=>{sync();pages=prPages(o,'pv');prev.innerHTML=pages.map(p=>`<figure>${p.svg}<figcaption>${prCaption(p)}</figcaption></figure>`).join('')};
+  m.addEventListener('change',e=>{const t=e.target,k=t.dataset&&t.dataset.o;if(!k)return;o[k]=t.type==='checkbox'?t.checked:t.value;prSaveOpts(o);render()});
+  const close=()=>{m.remove();document.removeEventListener('keydown',onKey,true)};
+  const onKey=e=>{if(e.key==='Escape'){e.stopPropagation();close()}};document.addEventListener('keydown',onKey,true);
+  m.addEventListener('click',async e=>{if(e.target===m){close();return}const a=e.target.closest('[data-a]');if(!a)return;
+    if(a.dataset.a==='close')close();
+    else if(a.dataset.a==='print')prPrint(prPages(o,'pr'));
+    else if(a.dataset.a==='svg'){for(const p of prPages(o,'sv'))await download(`plan_A4_${slug(p.name)}${p.spec?'_1-'+p.spec.N:''}.svg`,'<?xml version="1.0" encoding="UTF-8"?>\n'+p.svg)}});
+  render();m.querySelector('select').focus();
+}
 
 /* ---------- draw.io export ---------- */
 const b64=s=>btoa(unescape(encodeURIComponent(s)));
@@ -755,6 +905,7 @@ function rotateSel(d){const it=itemById(sel);if(!it)return;it.rot=(((it.rot||0)+
 document.addEventListener('keydown',e=>{
   const tag=(e.target.tagName||'').toLowerCase();const typing=tag==='input'||tag==='textarea'||tag==='select';
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!typing){e.preventDefault();undo();return}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='p'&&floors.length&&!document.querySelector('.a4dlg')){e.preventDefault();closeMenu();openA4Dialog();return}
   if(typing)return;
   if(e.key==='Escape'){if(placing||linkFrom){placing=null;linkFrom=null;$('#ghostL').innerHTML='';updatePalette();renderItems();status()}else if(sel){sel=null;renderItems();renderPanel()}closeMenu();return}
   if(mode!=='plan')return;
@@ -796,7 +947,7 @@ function renderItemPanel(){
   const el=$('#panel-item');const it=sel&&itemById(sel);
   if(!it){const nPts=state.items.filter(i=>TYPES[i.type]&&TYPES[i.type].circuit).length;
     el.innerHTML=`<div class="help"><h3>Aucun élément sélectionné</h3><p>Choisis un symbole dans la palette puis clique sur le plan. Clique un symbole posé pour le modifier ou le déplacer.</p>
-    <div class="keys"><kbd>R</kbd><span>Pivoter de 90° (<kbd>Maj</kbd>+<kbd>R</kbd> : −45°)</span><kbd>Suppr</kbd><span>Supprimer</span><span><kbd>Ctrl</kbd>+<kbd>D</kbd></span><span>Dupliquer</span><kbd>Flèches</kbd><span>Décaler (<kbd>Maj</kbd> : ×10)</span><kbd>Alt</kbd><span>Déplacer sans accrochage</span><span><kbd>Ctrl</kbd>+<kbd>Z</kbd></span><span>Annuler</span><kbd>Échap</kbd><span>Arrêter le placement</span></div>
+    <div class="keys"><kbd>R</kbd><span>Pivoter de 90° (<kbd>Maj</kbd>+<kbd>R</kbd> : −45°)</span><kbd>Suppr</kbd><span>Supprimer</span><span><kbd>Ctrl</kbd>+<kbd>D</kbd></span><span>Dupliquer</span><kbd>Flèches</kbd><span>Décaler (<kbd>Maj</kbd> : ×10)</span><kbd>Alt</kbd><span>Déplacer sans accrochage</span><span><kbd>Ctrl</kbd>+<kbd>Z</kbd></span><span>Annuler</span><span><kbd>Ctrl</kbd>+<kbd>P</kbd></span><span>Imprimer en A4 paysage</span><kbd>Échap</kbd><span>Arrêter le placement</span></div>
     <p>${nPts} point${nPts>1?'s':''} électrique${nPts>1?'s':''} sur l'ensemble des étages · ${state.circuits.length} circuit${state.circuits.length>1?'s':''}.</p></div>`;return}
   const T=TYPES[it.type];const refs=computeRefs();const c=circuitOf(it);
   const typeOpts=CATS.map(([k,l])=>`<optgroup label="${l}">${Object.entries(TYPES).filter(([,t])=>t.cat===k&&(it.type==='piece')===(k==='annot')).map(([id,t])=>opt(id,t.name,it.type)).join('')}</optgroup>`).join('');
@@ -886,6 +1037,7 @@ $('#panel-circ').addEventListener('click',e=>{const b=e.target.closest('button')
 
 function exportButtons(){return [
   ['plan','Plan de position (SVG)',`Étage affiché, avec légende et cartouche`],
+  ['a4','Plan A4 paysage (impression / PDF)','Échelle optimisée pour la feuille, prêt à imprimer'],
   ['uni','Schéma unifilaire (SVG)','Généré à partir des circuits'],
   ['drawio','Fichier draw.io complet (.drawio.svg)','Tes pages + calque Électricité + page Unifilaire'],
   ['csv','Liste des points (CSV)','Repères, pièces, hauteurs, pour l\'installateur'],
@@ -1095,7 +1247,8 @@ function showCopy(filename,data){const m=document.createElement('div');m.classNa
     if(a==='copy'){const ta=m.querySelector('textarea');try{await navigator.clipboard.writeText(data);toast('Copié')}catch{ta.focus();ta.select();toast('Texte sélectionné : Ctrl+C pour copier')}}})}
 const slug=s=>String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'').toLowerCase();
 async function doExport(k){closeMenu();
-  if((k==='plan'||k==='drawio'||k==='copyxml')&&!floors.length){toast('Importe d\'abord ton plan draw.io');return}
+  if((k==='plan'||k==='a4'||k==='drawio'||k==='copyxml')&&!floors.length){toast('Importe d\'abord ton plan draw.io');return}
+  if(k==='a4'){openA4Dialog();return}
   if(k==='plan'){const f=curFloor;const r=buildPlanExport(f);await download(`plan_position_${slug(floorName(f))}.svg`,svgDoc(r.markup,r.vb,r.pxW,r.pxH))}
   else if(k==='uni'){const u=buildUni(PAL_EX);await download('schema_unifilaire.svg',svgDoc(u.markup,`0 0 ${u.W} ${u.H}`,u.W,u.H))}
   else if(k==='drawio'){const xml=buildDrawioXml();const r=buildPlanExport(curFloor);await download('plan_electrique.drawio.svg',svgDoc(r.markup,r.vb,r.pxW,r.pxH,` content="${esc(xml)}"`))}
