@@ -630,16 +630,50 @@ const svgDoc=(inner,vb,w,h,extra='')=>`<?xml version="1.0" encoding="UTF-8"?>\n<
    Tout est en millimètres papier (viewBox 0 0 297 210). Le plan est en cm (1 unité draw.io = 1 cm) :
    à l'échelle 1:N, 1 cm réel = 10/N mm sur la feuille. */
 const PG={W:297,H:210,M:8,HEAD:12,PAD:4,NOTE:9};
-const STD_SCALES=[10,20,25,50,75,100,125,150,200,250,300,400,500,750,1000,1250,1500,2000,2500,5000];
-const FIX_SCALES=[20,25,50,75,100,125,150,200];
+const STD_SCALES=[5,10,15,20,25,50,75,100,125,150,200,250,300,400,500,750,1000,1250,1500,2000,2500,5000];
+const FIX_SCALES=[10,15,20,25,50,75,100,125,150,200];
 const CART_U=0.2,CART_W=360*CART_U,CART_H=134*CART_U,LEG_ROW=5;
+const ROOM_MARGIN=10;
 function prOpts(){let o={};try{o=JSON.parse(localStorage.getItem('pe-print')||'{}')||{}}catch{}
-  return{pages:'cur',uni:false,scale:'auto',common:true,sym:'plan',layout:'auto',...o}}
+  return{pages:'cur',room:'',uni:false,scale:'auto',common:true,sym:'auto',layout:'auto',...o}}
 function prSaveOpts(o){try{localStorage.setItem('pe-print',JSON.stringify(o))}catch{}}
 const prT=(x,y,s,size,o={})=>`<text x="${x}" y="${y}" text-anchor="${o.a||'start'}" style="fill:${o.color||PAL_EX.ink};font-size:${size}px;font-family:${o.mono?PAL_EX.mono:PAL_EX.font};font-weight:${o.w||500}">${esc(s)}</text>`;
 const prSvg=inner=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PG.W} ${PG.H}" width="${PG.W}mm" height="${PG.H}mm">${inner}</svg>`;
-function prLegend(fid){
-  const its=state.items.filter(i=>i.floor===fid&&TYPES[i.type]&&i.type!=='piece');
+
+/* ----- pièces : cadre détecté à partir des murs, ou tracé à la main (it.frame) ----- */
+const prRooms=()=>{const ord=Object.fromEntries(floors.map((f,i)=>[f.id,i]));
+  return state.items.filter(i=>i.type==='piece'&&floorsById[i.floor]).sort((a,b)=>ord[a.floor]-ord[b.floor]||String(a.label||'').localeCompare(String(b.label||''),'fr'))};
+const roomName=p=>(p.label||'Pièce')+' ('+floorName(p.floor)+')';
+const wallCache=new WeakMap();
+function wallRects(f){if(wallCache.has(f))return wallCache.get(f);const out=[];
+  for(const c of f.cells){if(!c.vertex)continue;const sh=c.st.shape||'';if(sh!=='mxgraph.floorplan.wall'&&sh!=='mxgraph.floorplan.window')continue;
+    const v=vbox(c);let w=v.w,h=v.h;if(sh==='mxgraph.floorplan.wall'){const th=+(c.st.wallThickness||10);h=th}
+    const r=v.rot*Math.PI/180,co=Math.cos(r),si=Math.sin(r);let b=null;
+    for(const[dx,dy]of[[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]])b=boxAdd(b,v.cx+dx*co-dy*si,v.cy+dx*si+dy*co);out.push(b)}
+  wallCache.set(f,out);return out}
+function autoRoomFrame(p){const f=floorsById[p.floor];if(!f)return null;const R=wallRects(f);const fb=planBox(f)||{x0:p.x-300,y0:p.y-300,x1:p.x+300,y1:p.y+300};
+  const ray=(ox,oy,d)=>{let best=null;for(const r of R){
+      if(d==='L'&&r.y0<=oy&&oy<=r.y1&&r.x1<=ox+1&&(!best||r.x1>best.x1))best=r;
+      else if(d==='R'&&r.y0<=oy&&oy<=r.y1&&r.x0>=ox-1&&(!best||r.x0<best.x0))best=r;
+      else if(d==='T'&&r.x0<=ox&&ox<=r.x1&&r.y1<=oy+1&&(!best||r.y1>best.y1))best=r;
+      else if(d==='B'&&r.x0<=ox&&ox<=r.x1&&r.y0>=oy-1&&(!best||r.y0<best.y0))best=r}
+    return best};
+  const med=a=>{a=a.filter(v=>v!=null).sort((x,y)=>x-y);return a.length?a[Math.floor(a.length/2)]:null};
+  const side=(d,orig)=>{const hits=orig.map(([x,y])=>ray(x,y,d)).filter(Boolean);
+    const inner={L:'x1',R:'x0',T:'y1',B:'y0'}[d],outer={L:'x0',R:'x1',T:'y0',B:'y1'}[d];
+    return hits.length?{in:med(hits.map(h=>h[inner])),out:med(hits.map(h=>h[outer]))}:null};
+  let box={x0:p.x-40,y0:p.y-40,x1:p.x+40,y1:p.y+40},res=null;
+  for(let it=0;it<2;it++){const along=(a0,a1)=>[0.1,0.25,0.4,0.5,0.6,0.75,0.9].map(t=>a0+(a1-a0)*t);
+    const ys=along(box.y0,box.y1),xs=along(box.x0,box.x1);
+    res={L:side('L',ys.map(y=>[p.x,y])),R:side('R',ys.map(y=>[p.x,y])),T:side('T',xs.map(x=>[x,p.y])),B:side('B',xs.map(x=>[x,p.y]))};
+    box={x0:res.L?res.L.in:fb.x0,x1:res.R?res.R.in:fb.x1,y0:res.T?res.T.in:fb.y0,y1:res.B?res.B.in:fb.y1}}
+  const o={x0:res.L?res.L.out:fb.x0,x1:res.R?res.R.out:fb.x1,y0:res.T?res.T.out:fb.y0,y1:res.B?res.B.out:fb.y1};
+  if(o.x1-o.x0<60||o.y1-o.y0<60)return{x:p.x-200,y:p.y-200,w:400,h:400};
+  return{x:o.x0,y:o.y0,w:o.x1-o.x0,h:o.y1-o.y0}}
+const roomFrame=p=>p.frame||autoRoomFrame(p);
+const inRect=(i,r,m=0)=>i.x>=r.x-m&&i.x<=r.x+r.w+m&&i.y>=r.y-m&&i.y<=r.y+r.h+m;
+
+function prLegend(its){its=its.filter(i=>TYPES[i.type]&&i.type!=='piece');
   const e=[{k:'head',t:'Légende'},...[...new Set(its.map(i=>i.type))].map(t=>({k:'sym',t}))];
   if(state.settings.colors){const cs=state.circuits.filter(c=>its.some(i=>i.circuit===c.id)).sort(refSort);
     if(cs.length){e.push({k:'head',t:'Circuits'});cs.forEach(c=>e.push({k:'circ',c}))}}
@@ -667,21 +701,24 @@ function prLegendMarkup(e,b){
     else{const c=it.c;m+=`<line x1="${x+.3}" y1="${y+2.5}" x2="${x+4.6}" y2="${y+2.5}" style="stroke:${colorOf(c)};stroke-width:1.2;stroke-linecap:round"/>`+prT(x+6.2,y+3.3,trunc(c.ref+' — '+c.name,maxCh),2.3)}});
   return m}
 function prPickN(Nmin,mode){if(mode==='fit')return Math.max(1,Math.ceil(Nmin-1e-6));if(mode==='auto')return STD_SCALES.find(n=>n>=Nmin*0.9999)||Math.ceil(Nmin);return +mode}
-/* Choisit, pour un étage, la mise en page et l'échelle qui donnent le plan le plus grand sur la feuille. */
-function prPlanSpec(fid,o,forcedN){
-  const f=floorsById[fid];const its=state.items.filter(i=>i.floor===fid);const leg=prLegend(fid);const Ls=prLayouts(leg.length);
-  const base=+state.settings.size||30;const symFor=N=>o.sym==='plan'?base:(+o.sym)*N/10;
-  const bbFor=s=>toRect(itemsBox(its,planBox(f),s))||{x:0,y:0,w:1000,h:800};
+/* Choisit, pour un étage ou une pièce, la mise en page et l'échelle qui donnent le dessin le plus grand sur la feuille. */
+function prPlanSpec(src,o,forcedN){
+  const fid=src.fid,room=src.room||null;const f=floorsById[fid];const frame=room?roomFrame(room):null;
+  const its=state.items.filter(i=>i.floor===fid&&(!frame||inRect(i,frame,ROOM_MARGIN)));const leg=prLegend(its);const Ls=prLayouts(leg.length);
+  const base=+state.settings.size||30;
+  const symFor=N=>o.sym==='plan'?base:o.sym==='auto'?Math.min(7,Math.max(4,base*10/N))*N/10:(+o.sym)*N/10;
+  const bbFor=s=>frame?{x:frame.x-ROOM_MARGIN,y:frame.y-ROOM_MARGIN,w:frame.w+2*ROOM_MARGIN,h:frame.h+2*ROOM_MARGIN}:(toRect(itemsBox(its,planBox(f),s))||{x:0,y:0,w:1000,h:800});
   const need=(bb,L)=>Math.max(bb.w*10/L.area.w,bb.h*10/L.area.h);
   let best=null;
   for(const L of(o.layout==='auto'?[Ls.side,Ls.bottom]:[Ls[o.layout]||Ls.side])){
     let s=base,bb=bbFor(s),Nmin=need(bb,L),N=forcedN||prPickN(Nmin,o.scale);
     for(let k=0;k<3&&o.sym!=='plan';k++){s=symFor(N);bb=bbFor(s);Nmin=need(bb,L);N=forcedN||prPickN(Nmin,o.scale)}
     s=symFor(N);
-    const r={fid,f,its,leg,L,N,Nmin,bb,symU:s,symMM:s*10/N,fits:N>=Nmin*0.999};
+    const r={fid,f,room,its,leg,L,N,Nmin,bb,symU:s,symMM:s*10/N,fits:N>=Nmin*0.999,
+      name:room?roomName(room):f.name,title:room?`${f.name} · ${room.label||'Pièce'}`:f.name};
     if(!best||r.N<best.N||(r.N===best.N&&r.Nmin<best.Nmin))best=r}
   return best}
-function prScaleBar(x1,y,N){const opts=[0.25,0.5,1,2,2.5,5,10,20,25,50,100];let m=opts[0];for(const v of opts)if(v*1000/N<=36)m=v;
+function prScaleBar(x1,y,N){const opts=[0.1,0.2,0.25,0.5,1,2,2.5,5,10,20,25,50,100];let m=opts[0];for(const v of opts)if(v*1000/N<=36)m=v;
   const L=m*1000/N,seg=L/4;let o='';
   for(let i=0;i<4;i++)o+=`<rect x="${x1-L+i*seg}" y="${y}" width="${seg}" height="1.5" style="fill:${i%2?'#fff':PAL_EX.ink};stroke:${PAL_EX.ink};stroke-width:.2"/>`;
   return o+prT(x1-L,y+4.6,'0',2.2,{a:'middle',mono:1})+prT(x1,y+4.6,fmt(m)+' m',2.2,{a:'middle',mono:1})}
@@ -692,61 +729,96 @@ function prPlanPage(p,idx,total,cid){
   const st=`fill:none;stroke:${PAL_EX.ink};stroke-width:.3`;
   let o=`<rect x="0" y="0" width="${PG.W}" height="${PG.H}" style="fill:#fff"/><rect x="${fx}" y="${fy}" width="${fw}" height="${fh}" style="fill:none;stroke:${PAL_EX.ink};stroke-width:.45"/>`;
   o+=`<path d="M${fx} ${top} L${fx+fw} ${top} ${L.sep}" style="${st}"/>`;
-  o+=prT(fx+3.5,fy+8.2,'Plan de position — '+p.f.name,5,{w:700});
+  o+=prT(fx+3.5,fy+8.2,trunc('Plan de position — '+p.title,60),5,{w:700});
   o+=prT(fx+fw-3.5,fy+7.6,'Échelle 1:'+p.N,3.6,{a:'end',w:700,mono:1})+prScaleBar(fx+fw-41,fy+3.6,p.N);
+  const its=p.room?state.items.filter(i=>i.floor===p.fid):p.its;
   const inner=planMarkup(p.f,PAL_EX)+state.links.map(l=>linkMarkup(l,byId,p.fid,PAL_EX)).join('')+
-    p.its.filter(i=>i.type==='piece').map(i=>itemMarkup(i,refs,ox)).join('')+p.its.filter(i=>i.type!=='piece').map(i=>itemMarkup(i,refs,ox)).join('');
-  if(!p.fits)o+=`<clipPath id="${cid}"><rect x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}"/></clipPath>`;
-  o+=`<g${p.fits?'':` clip-path="url(#${cid})"`}><g transform="translate(${tx} ${ty}) scale(${k}) translate(${-bb.x} ${-bb.y})">${inner}</g></g>`;
+    its.filter(i=>i.type==='piece').map(i=>itemMarkup(i,refs,ox)).join('')+its.filter(i=>i.type!=='piece').map(i=>itemMarkup(i,refs,ox)).join('');
+  // Pièce : on coupe tout ce qui sort du cadre ; étage : on ne coupe que si le plan déborde de la zone de dessin.
+  let clip=null;
+  if(p.room){const x0=Math.max(a.x,tx),y0=Math.max(a.y,ty),x1=Math.min(a.x+a.w,tx+bb.w*k),y1=Math.min(a.y+a.h,ty+bb.h*k);clip={x:x0,y:y0,w:x1-x0,h:y1-y0}}
+  else if(!p.fits)clip=a;
+  if(clip)o+=`<clipPath id="${cid}"><rect x="${clip.x}" y="${clip.y}" width="${clip.w}" height="${clip.h}"/></clipPath>`;
+  o+=`<g${clip?` clip-path="url(#${cid})"`:''}><g transform="translate(${tx} ${ty}) scale(${k}) translate(${-bb.x} ${-bb.y})">${inner}</g></g>`;
   o+=prLegendMarkup(p.leg,L.leg);
   o+=prT(L.note.x,L.note.y+3,'Repères : lettre du circuit + n° du point (cf. unifilaire)',2.1,{color:PAL_EX.muted})+
      prT(L.note.x,L.note.y+6.4,'Imprimer en A4 paysage à 100 % (taille réelle)',2.1,{color:PAL_EX.muted});
-  o+=cartouche(PAL_EX,L.cart.x,L.cart.y,CART_U,'Plan de position',`${p.f.name} · ${idx+1}/${total}`);
+  o+=cartouche(PAL_EX,L.cart.x,L.cart.y,CART_U,'Plan de position',`${trunc(p.room?(p.room.label||'Pièce'):p.f.name,22)} · ${idx+1}/${total}`);
   return prSvg(o)}
 function prUniPage(){const u=buildUni(PAL_EX);const aw=PG.W-2*PG.M,ah=PG.H-2*PG.M,k=Math.min(aw/u.W,ah/u.H);
   return prSvg(`<rect x="0" y="0" width="${PG.W}" height="${PG.H}" style="fill:#fff"/><g transform="translate(${PG.M+(aw-u.W*k)/2} ${PG.M+(ah-u.H*k)/2}) scale(${k})">${u.markup}</g>`)}
+function prSources(o){
+  if(o.pages==='room'){const p=itemById(o.room);return p&&p.type==='piece'&&floorsById[p.floor]?[{fid:p.floor,room:p}]:[]}
+  if(o.pages==='rooms')return prRooms().map(p=>({fid:p.floor,room:p}));
+  return(o.pages==='all'?floors.map(f=>f.id):[curFloor||floors[0].id]).map(fid=>({fid}))}
 function prPages(o,idp){
-  const fids=o.pages==='all'?floors.map(f=>f.id):[curFloor||floors[0].id];
-  let specs=fids.map(id=>prPlanSpec(id,o));
-  if(fids.length>1&&o.common&&(o.scale==='auto'||o.scale==='fit')){const Nc=Math.max(...specs.map(s=>s.N));specs=fids.map(id=>prPlanSpec(id,o,Nc))}
+  const srcs=prSources(o);let specs=srcs.map(s=>prPlanSpec(s,o));
+  if(srcs.length>1&&o.common&&(o.scale==='auto'||o.scale==='fit')){const Nc=Math.max(...specs.map(s=>s.N));specs=srcs.map(s=>prPlanSpec(s,o,Nc))}
   const total=specs.length+(o.uni?1:0);
-  const pages=specs.map((s,i)=>({name:s.f.name,spec:s,svg:prPlanPage(s,i,total,`${idp}c${i}`)}));
+  const pages=specs.map((s,i)=>({name:s.name,spec:s,svg:prPlanPage(s,i,total,`${idp}c${i}`)}));
   if(o.uni)pages.push({name:'Schéma unifilaire',svg:prUniPage()});
   return pages}
 function prCaption(p){if(!p.spec)return `<b>${esc(p.name)}</b> · ajusté à la feuille`;const s=p.spec;
   return `<b>${esc(p.name)} · 1:${s.N}</b> · légende ${s.L.name==='side'?'à droite':'en bas'} · symboles ${fmt(Math.round(s.symMM*10)/10)} mm`+
-    (s.fits?'':` · <span class="warn">le plan dépasse la feuille à cette échelle (minimum 1:${STD_SCALES.find(n=>n>=s.Nmin*0.9999)||Math.ceil(s.Nmin)})</span>`)+
+    (s.room?` · cadre ${s.room.frame?'tracé à la main':'automatique'}`:'')+
+    (s.fits?'':` · <span class="warn">dépasse la feuille à cette échelle (minimum 1:${STD_SCALES.find(n=>n>=s.Nmin*0.9999)||Math.ceil(s.Nmin)})</span>`)+
     (s.symMM<3?` · <span class="warn">symboles très petits</span>`:'')}
 function prPrint(pages){let root=$('#printRoot');if(!root){root=document.createElement('div');root.id='printRoot';document.body.appendChild(root)}
   root.innerHTML=pages.map(p=>`<div class="ppage">${p.svg}</div>`).join('');
   const clean=()=>{root.innerHTML='';window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);
   try{window.print()}catch{clean();toast('Impression indisponible ici : télécharge le SVG A4')}}
-function openA4Dialog(){
-  const o=prOpts();if(floors.length<2)o.pages='cur';
+
+/* ----- cadrage manuel d'une pièce sur le plan ----- */
+let framing=null;
+const frameRect=r=>`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" style="fill:rgba(43,94,158,.10);stroke:var(--sel);stroke-width:2.5;stroke-dasharray:9 6;vector-effect:non-scaling-stroke"/>`;
+function showFrameGhost(){const p=framing&&itemById(framing.pid);const r=p&&roomFrame(p);$('#ghostL').innerHTML=r?frameRect(r):''}
+function startFraming(pid){const p=itemById(pid);if(!p)return;placing=null;linkFrom=null;sel=null;updatePalette();
+  if(mode!=='plan'||curFloor!==p.floor)switchFloor(p.floor);framing={pid};svg.classList.add('placing');
+  const r=roomFrame(p);if(r){fitTo({x:r.x-r.w*.6,y:r.y-r.h*.6,w:r.w*2.2,h:r.h*2.2});renderItems()}showFrameGhost();updateHint()}
+function stopFraming(rect){if(!framing)return;const pid=framing.pid;framing=null;svg.classList.remove('placing');$('#ghostL').innerHTML='';updateHint();
+  const p=itemById(pid);if(rect&&p){p.frame={x:Math.round(rect.x),y:Math.round(rect.y),w:Math.round(rect.w),h:Math.round(rect.h)};commit();toast('Cadre de la pièce enregistré')}
+  openA4Dialog({pages:'room',room:pid})}
+
+function openA4Dialog(init){
+  const o={...prOpts(),...(init||{})};if(floors.length<2&&o.pages==='all')o.pages='cur';
+  const rooms=prRooms();if(!rooms.length&&(o.pages==='room'||o.pages==='rooms'))o.pages='cur';
+  if(o.pages==='room'&&!rooms.some(r=>r.id===o.room))o.room=rooms[0].id;
+  prSaveOpts(o);
   const m=document.createElement('div');m.className='modal';
-  const opt=(v,l,cur)=>`<option value="${v}"${String(cur)===String(v)?' selected':''}>${esc(l)}</option>`;
+  const opt=(v,l,cur,dis)=>`<option value="${v}"${String(cur)===String(v)?' selected':''}${dis?' disabled':''}>${esc(l)}</option>`;
+  const noRoom=rooms.length?'':' (aucun nom de pièce posé)';
   m.innerHTML=`<div class="a4dlg" role="dialog" aria-modal="true" aria-label="Plan A4 paysage">
     <div class="a4head"><h3>Plan A4 paysage — impression</h3><button type="button" class="btn sm" data-a="close">Fermer</button></div>
     <div class="a4body"><div class="a4opts">
-      ${field('Pages',`<select data-o="pages">${opt('cur','Étage affiché ('+floorName(curFloor)+')',o.pages)}${floors.length>1?opt('all','Tous les étages ('+floors.length+')',o.pages):''}</select>`)}
+      ${field('Pages',`<select data-o="pages">${opt('cur','Étage affiché ('+floorName(curFloor)+')',o.pages)}${floors.length>1?opt('all','Tous les étages ('+floors.length+')',o.pages):''}${opt('room','Une pièce'+noRoom,o.pages,!rooms.length)}${opt('rooms','Toutes les pièces'+(rooms.length?' ('+rooms.length+')':noRoom),o.pages,!rooms.length)}</select>`)}
+      <div class="a4room"></div>
       <label class="chk"><input type="checkbox" data-o="uni"${o.uni?' checked':''}> Ajouter le schéma unifilaire</label>
-      ${field('Échelle',`<select data-o="scale">${opt('auto','Automatique (échelle normalisée)',o.scale)}${opt('fit','Remplir la feuille (échelle exacte)',o.scale)}${FIX_SCALES.map(n=>opt(n,'1:'+n,o.scale)).join('')}</select>`,'Automatique : la plus grande échelle usuelle (1:50, 1:75, 1:100…) pour laquelle l\'étage tient sur la feuille.')}
-      <label class="chk"><input type="checkbox" data-o="common"${o.common?' checked':''}> Même échelle pour tous les étages</label>
-      ${field('Mise en page',`<select data-o="layout">${opt('auto','Automatique (plan le plus grand)',o.layout)}${opt('side','Légende à droite',o.layout)}${opt('bottom','Légende en bas',o.layout)}</select>`)}
-      ${field('Taille des symboles',`<select data-o="sym">${opt('plan','Comme à l\'écran ('+(+state.settings.size||30)+' cm)',o.sym)}${[4,5,6,8].map(n=>opt(n,n+' mm sur la feuille',o.sym)).join('')}</select>`,'« Comme à l\'écran » garde les mêmes proportions que dans l\'éditeur.')}
+      ${field('Échelle',`<select data-o="scale">${opt('auto','Automatique (échelle normalisée)',o.scale)}${opt('fit','Remplir la feuille (échelle exacte)',o.scale)}${FIX_SCALES.map(n=>opt(n,'1:'+n,o.scale)).join('')}</select>`,'Automatique : la plus grande échelle usuelle (1:20, 1:50, 1:100…) pour laquelle le dessin tient sur la feuille.')}
+      <label class="chk"><input type="checkbox" data-o="common"${o.common?' checked':''}> Même échelle sur toutes les pages</label>
+      ${field('Mise en page',`<select data-o="layout">${opt('auto','Automatique (dessin le plus grand)',o.layout)}${opt('side','Légende à droite',o.layout)}${opt('bottom','Légende en bas',o.layout)}</select>`)}
+      ${field('Taille des symboles',`<select data-o="sym">${opt('auto','Automatique (4 à 7 mm)',o.sym)}${opt('plan','Comme à l\'écran ('+(+state.settings.size||30)+' cm)',o.sym)}${[4,5,6,8,10].map(n=>opt(n,n+' mm sur la feuille',o.sym)).join('')}</select>`,'Automatique : proportionnels au plan, mais jamais plus petits que 4 mm ni plus grands que 7 mm.')}
     </div><div class="a4prev" aria-live="polite"></div></div>
     <div class="acts"><p class="fine">Dans la fenêtre d'impression : A4, paysage, échelle 100 % (taille réelle). Choisis « Enregistrer au format PDF » comme imprimante pour obtenir un PDF.</p>
       <button type="button" class="btn" data-a="svg">Télécharger SVG A4</button><button type="button" class="btn primary" data-a="print">Imprimer / PDF</button></div></div>`;
   document.body.appendChild(m);
-  const prev=m.querySelector('.a4prev');let pages=[];
-  const sync=()=>{const many=o.pages==='all'&&floors.length>1;const cb=m.querySelector('[data-o="common"]');cb.disabled=!many||!(o.scale==='auto'||o.scale==='fit');cb.closest('.chk').style.opacity=cb.disabled?.5:1};
-  const render=()=>{sync();pages=prPages(o,'pv');prev.innerHTML=pages.map(p=>`<figure>${p.svg}<figcaption>${prCaption(p)}</figcaption></figure>`).join('')};
-  m.addEventListener('change',e=>{const t=e.target,k=t.dataset&&t.dataset.o;if(!k)return;o[k]=t.type==='checkbox'?t.checked:t.value;prSaveOpts(o);render()});
+  const prev=m.querySelector('.a4prev'),roomBox=m.querySelector('.a4room');
+  const sync=()=>{
+    if(o.pages==='room'){const p=itemById(o.room);
+      roomBox.innerHTML=field('Pièce',`<select data-o="room">${rooms.map(r=>opt(r.id,roomName(r),o.room)).join('')}</select>`,'Le cadre est trouvé à partir des murs autour du nom de la pièce. S\'il est faux (pièce ouverte, en L…), trace-le toi-même.')+
+        `<div class="acts" style="margin:4px 0 0;padding:0;border:0;display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn sm" data-a="frame">${p&&p.frame?'Retracer le cadre':'Tracer le cadre sur le plan'}</button>${p&&p.frame?'<button type="button" class="btn sm" data-a="unframe">Cadre automatique</button>':''}</div>`}
+    else if(o.pages==='rooms')roomBox.innerHTML='<p class="fine" style="margin:0">Une page par nom de pièce posé sur les plans. Pour corriger le cadre d\'une pièce, choisis « Une pièce ».</p>';
+    else roomBox.innerHTML='';
+    const n=prSources(o).length;const cb=m.querySelector('[data-o="common"]');cb.disabled=n<2||!(o.scale==='auto'||o.scale==='fit');cb.closest('.chk').style.opacity=cb.disabled?.5:1};
+  const render=()=>{sync();const pages=prPages(o,'pv');prev.innerHTML=pages.length?pages.map(p=>`<figure>${p.svg}<figcaption>${prCaption(p)}</figcaption></figure>`).join(''):'<p class="fine">Rien à imprimer.</p>'};
+  m.addEventListener('change',e=>{const t=e.target,k=t.dataset&&t.dataset.o;if(!k)return;o[k]=t.type==='checkbox'?t.checked:t.value;
+    if(k==='pages'&&o.pages==='room'&&!rooms.some(r=>r.id===o.room))o.room=(rooms.find(r=>r.floor===curFloor)||rooms[0]).id;prSaveOpts(o);render()});
   const close=()=>{m.remove();document.removeEventListener('keydown',onKey,true)};
   const onKey=e=>{if(e.key==='Escape'){e.stopPropagation();close()}};document.addEventListener('keydown',onKey,true);
   m.addEventListener('click',async e=>{if(e.target===m){close();return}const a=e.target.closest('[data-a]');if(!a)return;
     if(a.dataset.a==='close')close();
-    else if(a.dataset.a==='print')prPrint(prPages(o,'pr'));
+    else if(a.dataset.a==='frame'){close();startFraming(o.room)}
+    else if(a.dataset.a==='unframe'){const p=itemById(o.room);if(p){delete p.frame;commit()}render()}
+    else if(a.dataset.a==='print'){const pg=prPages(o,'pr');if(pg.length)prPrint(pg)}
     else if(a.dataset.a==='svg'){for(const p of prPages(o,'sv'))await download(`plan_A4_${slug(p.name)}${p.spec?'_1-'+p.spec.N:''}.svg`,'<?xml version="1.0" encoding="UTF-8"?>\n'+p.svg)}});
   render();m.querySelector('select').focus();
 }
@@ -846,6 +918,7 @@ function renderItems(){
 function updateHint(){
   const h=$('#hint');let html='';
   if(mode==='uni'){html=state.items.some(i=>circById(i.circuit))?'':'<b>Schéma unifilaire</b>Il se construit tout seul à partir des circuits. Place des points sur les plans et affecte-les à un circuit (onglet Circuits).'}
+  else if(framing){const p=itemById(framing.pid);html=`<b>Cadre de la pièce « ${esc(p&&p.label||'Pièce')} »</b>Trace un rectangle autour de la pièce, murs compris. Le pointillé montre le cadre actuel. <kbd>Échap</kbd> annule.`}
   else if(linkFrom)html='<b>Liaison de commande</b>Clique sur le point à relier (ex. l\'interrupteur vers sa lampe). Échap pour annuler.';
   else if(placing)html=`<b>${esc(TYPES[placing].name)}</b>Clique sur le plan pour poser. <kbd>R</kbd> pivote, <kbd>Échap</kbd> termine.`;
   else if(!state.items.some(i=>i.floor===curFloor))html='<b>Plan vide</b>1. Nomme les pièces (Annotations › Nom de pièce).<br>2. Choisis un symbole dans la palette, clique sur le plan pour le poser.<br>3. Affecte chaque point à un circuit : l\'unifilaire se génère.';
@@ -864,6 +937,7 @@ const snapv=(v,e)=>{const s=+state.settings.snap||0;return(!s||e&&e.altKey)?Math
 svg.addEventListener('pointerdown',e=>{
   if(e.button!==0&&e.pointerType==='mouse'&&e.button!==1)return;
   const w=toWorld(e);const g=e.target.closest&&e.target.closest('.it');
+  if(mode==='plan'&&framing&&e.button===0){drag={type:'frame',sx:snapv(w.x,e),sy:snapv(w.y,e),moved:false};svg.setPointerCapture(e.pointerId);return}
   if(mode==='plan'&&placing&&e.button===0){placeAt(w,e);return}
   if(mode==='plan'&&g&&e.button===0){const id=g.dataset.id;
     if(linkFrom&&id!==linkFrom){addLink(linkFrom,id);return}
@@ -875,16 +949,18 @@ svg.addEventListener('pointermove',e=>{
   const w=toWorld(e);lastPos=w;
   $('#stPos').textContent=mode==='plan'?`x ${Math.round(w.x)} · y ${Math.round(w.y)} cm · ${Math.round(view.k*100)} %`:`${Math.round(view.k*100)} %`;
   if(!drag){if(placing&&mode==='plan'){$('#ghostL').innerHTML=itemMarkup({id:'ghost',type:placing,x:snapv(w.x,e),y:snapv(w.y,e),rot:placeRot,n:1,label:'Pièce'},{},{ex:true,pal:PAL_APP})}return}
+  if(drag.type==='frame'){const x=snapv(w.x,e),y=snapv(w.y,e);drag.moved=true;drag.r={x:Math.min(drag.sx,x),y:Math.min(drag.sy,y),w:Math.abs(x-drag.sx),h:Math.abs(y-drag.sy)};$('#ghostL').innerHTML=frameRect(drag.r);return}
   if(drag.type==='item'){const it=itemById(drag.id);const dx=w.x-drag.sx,dy=w.y-drag.sy;if(!drag.moved&&Math.hypot(dx,dy)*view.k<3)return;drag.moved=true;
     it.x=snapv(drag.ox+dx,e);it.y=snapv(drag.oy+dy,e);renderItems()}
   else{const dx=e.clientX-drag.cx,dy=e.clientY-drag.cy;if(!drag.moved&&Math.hypot(dx,dy)<3)return;drag.moved=true;svg.classList.add('panning');
     view.x=drag.vx-dx/view.k;view.y=drag.vy-dy/view.k;applyView()}
 });
 function endDrag(e){if(!drag)return;const d=drag;drag=null;svg.classList.remove('panning');
+  if(d.type==='frame'){if(d.r&&d.r.w>=40&&d.r.h>=40)stopFraming(d.r);else{showFrameGhost();toast('Trace un rectangle plus grand autour de la pièce')}return}
   if(d.type==='item'&&d.moved){commit();renderPanel()}
   if(d.type==='pan'&&!d.moved&&mode==='plan'){if(linkFrom){linkFrom=null;renderItems();status()}else if(sel){sel=null;renderItems();renderPanel()}}}
 svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
-svg.addEventListener('pointerleave',()=>{if(!drag){$('#ghostL').innerHTML='';lastPos=null;status()}});
+svg.addEventListener('pointerleave',()=>{if(!drag){if(framing)showFrameGhost();else $('#ghostL').innerHTML='';lastPos=null;status()}});
 svg.addEventListener('wheel',e=>{e.preventDefault();zoomAt(Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0015)),e.clientX,e.clientY)},{passive:false});
 $('#zIn').onclick=()=>zoomAt(1.3);$('#zOut').onclick=()=>zoomAt(1/1.3);$('#zFit').onclick=()=>fit();
 
@@ -899,7 +975,7 @@ function placeAt(w,e){
 }
 function addLink(a,b){if(!state.links.some(l=>(l.a===a&&l.b===b)||(l.a===b&&l.b===a)))state.links.push({a,b});linkFrom=null;commit();renderItems();renderPanel();status();toast('Liaison ajoutée')}
 function removeItem(id){state.items=state.items.filter(i=>i.id!==id);state.links=state.links.filter(l=>l.a!==id&&l.b!==id);if(sel===id)sel=null;commit();renderItems();renderPanel()}
-function duplicate(id){const it=itemById(id);if(!it)return;const s=+state.settings.size||30;const n={...it,id:uid(),x:it.x+s,y:it.y+s};if(n.circuit)n.ord=nextOrd(n.circuit);state.items.push(n);sel=n.id;commit();renderItems();renderPanel()}
+function duplicate(id){const it=itemById(id);if(!it)return;const s=+state.settings.size||30;const n={...it,id:uid(),x:it.x+s,y:it.y+s};delete n.frame;if(n.circuit)n.ord=nextOrd(n.circuit);state.items.push(n);sel=n.id;commit();renderItems();renderPanel()}
 function rotateSel(d){const it=itemById(sel);if(!it)return;it.rot=(((it.rot||0)+d)%360+360)%360;commit();renderItems();renderPanel()}
 
 document.addEventListener('keydown',e=>{
@@ -907,6 +983,7 @@ document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!typing){e.preventDefault();undo();return}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='p'&&floors.length&&!document.querySelector('.a4dlg')){e.preventDefault();closeMenu();openA4Dialog();return}
   if(typing)return;
+  if(e.key==='Escape'&&framing){stopFraming(null);return}
   if(e.key==='Escape'){if(placing||linkFrom){placing=null;linkFrom=null;$('#ghostL').innerHTML='';updatePalette();renderItems();status()}else if(sel){sel=null;renderItems();renderPanel()}closeMenu();return}
   if(mode!=='plan')return;
   if(e.key==='r'||e.key==='R'){const d=e.shiftKey?-45:90;if(placing){placeRot=((placeRot+d)%360+360)%360;if(lastPos)$('#ghostL').innerHTML=itemMarkup({id:'ghost',type:placing,x:snapv(lastPos.x),y:snapv(lastPos.y),rot:placeRot,n:1,label:'Pièce'},{},{ex:true,pal:PAL_APP})}else if(sel)rotateSel(d);e.preventDefault();return}
@@ -929,6 +1006,7 @@ function renderPalette(){
 }
 function updatePalette(){document.querySelectorAll('.pitem').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.type===placing)));svg.classList.toggle('placing',!!placing)}
 function switchFloor(id){
+  if(framing&&id!==(itemById(framing.pid)||{}).floor){framing=null;svg.classList.remove('placing');$('#ghostL').innerHTML=''}
   views[mode==='uni'?'__uni':curFloor]={...view};
   if(id==='__uni'){mode='uni';placing=null;linkFrom=null;updatePalette()}else{mode='plan';curFloor=id;try{localStorage.setItem('pe-floor',id)}catch{}}
   renderTabs();renderStage();const v=views[id];if(v){view={...v};applyView()}else fit();status();
@@ -964,7 +1042,7 @@ function renderItemPanel(){
   if(it.type!=='piece')h+=fieldDiv('Orientation',`<div class="seg"><button type="button" data-rot="-90">↺ 90°</button><button type="button" data-rot="-45">↺ 45°</button><span class="mono">${it.rot||0}°</span><button type="button" data-rot="45">↻ 45°</button><button type="button" data-rot="90">↻ 90°</button></div>`);
   if(it.type!=='piece'){const ls=state.links.map((l,i)=>({l,i})).filter(({l})=>l.a===it.id||l.b===it.id);
     h+=`<div class="fld"><span>Liaisons de commande</span>${ls.length?`<ul class="linklist">${ls.map(({l,i})=>{const o=itemById(l.a===it.id?l.b:l.a);return `<li><span>${esc(o?(refs[o.id]||'—')+' · '+TYPES[o.type].short:'?')}</span><button type="button" class="btn sm" data-unlink="${i}">Retirer</button></li>`}).join('')}</ul>`:'<small>Relie par ex. un interrupteur à la lampe qu\'il commande (trait pointillé sur le plan).</small>'}<div><button type="button" class="btn sm" data-act="link" style="margin-top:4px">Relier à un autre point</button></div></div>`}
-  h+=`</div><div class="acts"><button type="button" class="btn" data-act="dup">Dupliquer</button><button type="button" class="btn danger" data-act="del">Supprimer</button></div>`;
+  h+=`</div><div class="acts">${it.type==='piece'?'<button type="button" class="btn" data-act="print-room">Imprimer la pièce (A4)</button>':''}<button type="button" class="btn" data-act="dup">Dupliquer</button><button type="button" class="btn danger" data-act="del">Supprimer</button></div>`;
   el.innerHTML=h;
 }
 $('#panel-item').addEventListener('input',e=>{const it=itemById(sel);if(!it)return;const id=e.target.id;
@@ -983,6 +1061,7 @@ $('#panel-item').addEventListener('click',e=>{const it=itemById(sel);if(!it)retu
   else if(b.dataset.unlink!=null){state.links.splice(+b.dataset.unlink,1);commit();renderItems();renderItemPanel()}
   else if(b.dataset.act==='link'){linkFrom=it.id;placing=null;updatePalette();renderItems();status()}
   else if(b.dataset.act==='dup')duplicate(it.id);
+  else if(b.dataset.act==='print-room')openA4Dialog({pages:'room',room:it.id});
   else if(b.dataset.act==='del')removeItem(it.id);});
 
 function renderCircPanel(){

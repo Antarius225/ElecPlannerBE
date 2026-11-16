@@ -11,6 +11,7 @@
 - Contrôles indicatifs (8 prises max par circuit, section/calibre, DDR 30 mA, 8 circuits par DDR, classe feu renseignée, résistance de terre)
 - Exports : SVG (plan, unifilaire), `.drawio.svg` éditable dans draw.io, CSV des points, sauvegarde JSON
 - Impression A4 paysage (Exporter → « Plan A4 paysage », ou <kbd>Ctrl</kbd>+<kbd>P</kbd>) : l'app choisit la plus grande échelle normalisée (1:50, 1:75, 1:100…) et la mise en page (légende à droite ou en bas) qui font tenir chaque étage sur la feuille ; un étage ou tous (même échelle possible), schéma unifilaire en option, taille des symboles réglable. Impression ou PDF via le navigateur (à imprimer à 100 %), ou SVG A4 aux dimensions réelles
+- Impression d'une pièce seule (ou de toutes les pièces, une par page) : le cadre est détecté à partir des murs autour du nom de pièce, ou tracé à la main sur le plan si la pièce est ouverte ou en L. Aussi accessible depuis le bouton « Imprimer la pièce (A4) » d'un nom de pièce sélectionné
 
 Application statique en un seul fichier (`index.html`), sans dépendance. Les données sont enregistrées dans le navigateur (localStorage) ; utiliser l'export JSON pour sauvegarder ou changer d'appareil.
 
